@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, RefreshCw, UserCheck, Shield, Building } from 'lucide-react';
+import { LogOut, Shield, Building } from 'lucide-react';
 
 export default function Navbar({ title, subtitle }) {
   const { user, currentHotel, logout, login } = useAuth();
@@ -21,34 +21,44 @@ export default function Navbar({ title, subtitle }) {
   return (
     <header className="top-navbar">
       <div>
-        <h1 style={{ fontSize: '19px', fontWeight: '800', color: 'white', letterSpacing: '-0.02em' }}>
+        <h1 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--t-900)' }}>
           {title}
         </h1>
         {subtitle && (
-          <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginTop: '1px' }}>
+          <p style={{ fontSize: '12px', color: 'var(--t-500)', marginTop: '1px' }}>
             {subtitle}
           </p>
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        {/* Quick Demo Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-card)', padding: '3px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Quick Demo Switcher (Hygaar-IQ style pill container) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: 'var(--tertiary)',
+            padding: '3px',
+            borderRadius: 'var(--r-pill)',
+            border: '1px solid var(--border-sub)',
+          }}
+        >
           <button
             onClick={() => handleQuickSwitch('admin')}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-sm)',
+              padding: '6px 14px',
+              borderRadius: '20px',
               border: 'none',
-              background: isSuperAdmin ? 'var(--primary)' : 'transparent',
-              color: isSuperAdmin ? 'white' : 'var(--text-secondary)',
+              background: isSuperAdmin ? 'var(--brand)' : 'transparent',
+              color: isSuperAdmin ? 'var(--white)' : 'var(--t-600)',
               fontSize: '12px',
               fontWeight: '600',
               cursor: 'pointer',
               transition: 'var(--transition)',
+              boxShadow: isSuperAdmin ? 'var(--shadow-xs)' : 'none',
             }}
             title="Switch to SaaS Company Platform Super Admin"
           >
@@ -62,15 +72,16 @@ export default function Navbar({ title, subtitle }) {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-sm)',
+              padding: '6px 14px',
+              borderRadius: '20px',
               border: 'none',
-              background: !isSuperAdmin ? 'var(--primary)' : 'transparent',
-              color: !isSuperAdmin ? 'white' : 'var(--text-secondary)',
+              background: !isSuperAdmin ? 'var(--brand)' : 'transparent',
+              color: !isSuperAdmin ? 'var(--white)' : 'var(--t-600)',
               fontSize: '12px',
               fontWeight: '600',
               cursor: 'pointer',
               transition: 'var(--transition)',
+              boxShadow: !isSuperAdmin ? 'var(--shadow-xs)' : 'none',
             }}
             title="Switch to Hotel Owner (Apex Hospitality Group)"
           >
@@ -85,17 +96,17 @@ export default function Navbar({ title, subtitle }) {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-full)',
-              fontSize: '12.5px',
+              gap: '6px',
+              background: 'var(--surface-sub)',
+              border: '1px solid var(--border-sub)',
+              padding: '5px 12px',
+              borderRadius: 'var(--r-pill)',
+              fontSize: '12px',
             }}
           >
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--emerald)', boxShadow: '0 0 8px var(--emerald)' }} />
-            <span style={{ color: 'var(--text-secondary)' }}>Selected:</span>
-            <strong style={{ color: 'white' }}>{currentHotel.name}</strong>
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--success)' }} />
+            <span style={{ color: 'var(--t-500)' }}>Hotel:</span>
+            <strong style={{ color: 'var(--t-900)' }}>{currentHotel.name}</strong>
           </div>
         )}
 
@@ -105,7 +116,7 @@ export default function Navbar({ title, subtitle }) {
           className="btn btn-secondary btn-sm"
           title="Sign out of platform"
         >
-          <LogOut size={14} />
+          <LogOut size={13} />
           <span>Logout</span>
         </button>
       </div>

@@ -45,17 +45,17 @@ export default function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'radial-gradient(ellipse at 50% -20%, rgba(99, 102, 241, 0.25), var(--bg-app) 70%)',
+        backgroundColor: 'var(--bg)',
         padding: '20px',
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: '460px',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-xl)',
+          maxWidth: '440px',
+          background: 'var(--white)',
+          border: '1px solid var(--border-sub)',
+          borderRadius: 'var(--r-container)',
           padding: '36px',
           boxShadow: 'var(--shadow-lg)',
         }}
@@ -64,37 +64,37 @@ export default function Login() {
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div
             style={{
-              width: '50px',
-              height: '50px',
-              borderRadius: '14px',
-              background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+              width: '46px',
+              height: '46px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, var(--brand), #4f46e5)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              margin: '0 auto 14px',
-              boxShadow: '0 4px 18px rgba(99, 102, 241, 0.4)',
+              margin: '0 auto 12px',
+              boxShadow: 'var(--shadow-xs)',
             }}
           >
-            <Hotel size={28} />
+            <Hotel size={24} />
           </div>
-          <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'white' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--t-900)' }}>
             GrandStay SaaS
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Multi-Tenant Hotel Automation & Module Platform
+          <p style={{ fontSize: '13px', color: 'var(--t-500)', marginTop: '2px' }}>
+            Multi-Tenant Hotel Automation Platform
           </p>
         </div>
 
         {error && (
           <div
             style={{
-              background: 'var(--rose-light)',
-              border: '1px solid rgba(244, 63, 94, 0.3)',
-              color: 'var(--rose)',
+              background: 'var(--error-bg)',
+              border: '1px solid var(--error-border)',
+              color: 'var(--error)',
               padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '13px',
+              borderRadius: 'var(--r-sm)',
+              fontSize: '12.5px',
               marginBottom: '18px',
             }}
           >
@@ -116,7 +116,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 style={{ paddingLeft: '38px' }}
               />
-              <Mail size={16} style={{ position: 'absolute', left: '12px', top: '13px', color: 'var(--text-muted)' }} />
+              <Mail size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--t-500)' }} />
             </div>
           </div>
 
@@ -132,7 +132,7 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 style={{ paddingLeft: '38px' }}
               />
-              <Lock size={16} style={{ position: 'absolute', left: '12px', top: '13px', color: 'var(--text-muted)' }} />
+              <Lock size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--t-500)' }} />
             </div>
           </div>
 
@@ -140,16 +140,16 @@ export default function Login() {
             type="submit"
             disabled={loading}
             className="btn btn-primary"
-            style={{ width: '100%', padding: '12px', fontSize: '14px', marginTop: '6px' }}
+            style={{ width: '100%', padding: '11px', fontSize: '14px', marginTop: '6px' }}
           >
             <span>{loading ? 'Authenticating...' : 'Sign In to Dashboard'}</span>
-            <ArrowRight size={16} />
+            <ArrowRight size={15} />
           </button>
         </form>
 
         {/* Quick Demo Logins */}
-        <div style={{ paddingTop: '20px', borderTop: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '12px' }}>
+        <div style={{ paddingTop: '18px', borderTop: '1px solid var(--border-sub)' }}>
+          <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', color: 'var(--t-500)', textAlign: 'center', marginBottom: '12px', letterSpacing: '0.04em' }}>
             Instant Demo Logins
           </div>
 
@@ -159,13 +159,13 @@ export default function Login() {
               onClick={() => handleQuickLogin('admin')}
               disabled={loading}
               className="btn btn-secondary"
-              style={{ fontSize: '12px', padding: '10px 8px', flexDirection: 'column', gap: '4px' }}
+              style={{ fontSize: '12px', padding: '9px 8px', flexDirection: 'column', gap: '3px' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand)' }}>
                 <Shield size={14} />
                 <strong>Super Admin</strong>
               </div>
-              <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Company Internal</span>
+              <span style={{ fontSize: '10.5px', color: 'var(--t-500)' }}>Platform Control</span>
             </button>
 
             <button
@@ -173,13 +173,13 @@ export default function Login() {
               onClick={() => handleQuickLogin('owner')}
               disabled={loading}
               className="btn btn-secondary"
-              style={{ fontSize: '12px', padding: '10px 8px', flexDirection: 'column', gap: '4px' }}
+              style={{ fontSize: '12px', padding: '9px 8px', flexDirection: 'column', gap: '3px' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--emerald)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--success)' }}>
                 <Building size={14} />
                 <strong>Hotel Owner</strong>
               </div>
-              <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Apex Group (3 Hotels)</span>
+              <span style={{ fontSize: '10.5px', color: 'var(--t-500)' }}>Apex Group (3 Hotels)</span>
             </button>
           </div>
         </div>

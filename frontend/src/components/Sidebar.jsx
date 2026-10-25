@@ -22,7 +22,6 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
 
   const accessibleHotels = user?.accessible_hotels || [];
 
-  // All 6 core modules with metadata
   const allModulesList = [
     { code: 'front_office', name: 'Front Office', icon: ConciergeBell },
     { code: 'rooms', name: 'Rooms & Rack', icon: Bed },
@@ -35,28 +34,28 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
   return (
     <aside className="sidebar">
       {/* Brand Header */}
-      <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ padding: '20px 20px', borderBottom: '1px solid var(--border-sub)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
             style={{
-              width: '38px',
-              height: '38px',
+              width: '36px',
+              height: '36px',
               borderRadius: '10px',
-              background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+              background: 'linear-gradient(135deg, var(--brand), #4f46e5)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              boxShadow: '0 2px 10px rgba(99, 102, 241, 0.4)',
+              boxShadow: 'var(--shadow-xs)',
             }}
           >
-            <Hotel size={22} />
+            <Hotel size={20} />
           </div>
           <div>
-            <h2 style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.02em', color: 'white' }}>
-              GrandStay<span style={{ color: 'var(--primary)' }}>.</span>
+            <h2 style={{ fontSize: '16.5px', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--t-900)' }}>
+              GrandStay<span style={{ color: 'var(--brand)' }}>.</span>
             </h2>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
+            <p style={{ fontSize: '11px', color: 'var(--t-500)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               {isSuperAdmin ? 'Platform Super Admin' : 'Hotel Owner Portal'}
             </p>
           </div>
@@ -65,8 +64,8 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
 
       {/* Hotel Switcher (For Hotel Owner / Multi-hotel users) */}
       {!isSuperAdmin && (
-        <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-subtle)', background: 'rgba(255, 255, 255, 0.01)' }}>
-          <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-sub)', background: 'var(--surface-sub)' }}>
+          <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', display: 'block', marginBottom: '6px' }}>
             Active Property
           </label>
           <div style={{ position: 'relative' }}>
@@ -79,12 +78,13 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
               }}
               style={{
                 fontSize: '13px',
-                padding: '8px 12px',
-                paddingRight: '30px',
+                padding: '7px 10px',
+                paddingRight: '28px',
                 appearance: 'none',
                 cursor: 'pointer',
-                borderColor: 'rgba(99, 102, 241, 0.3)',
-                background: 'var(--bg-surface)',
+                borderColor: 'var(--border)',
+                background: 'var(--white)',
+                fontWeight: '600',
               }}
             >
               {accessibleHotels.map(h => (
@@ -93,13 +93,13 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
                 </option>
               ))}
             </select>
-            <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '12px', pointerEvents: 'none', color: 'var(--text-muted)' }} />
+            <ChevronDown size={14} style={{ position: 'absolute', right: '10px', top: '10px', pointerEvents: 'none', color: 'var(--t-500)' }} />
           </div>
           {currentHotel && (
             <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>Code: <strong style={{ color: 'white' }}>{currentHotel.hotel_code}</strong></span>
-              <span className="badge badge-active" style={{ fontSize: '10px', padding: '2px 7px' }}>
-                {activeModules.length} Modules Active
+              <span style={{ fontSize: '11.5px', color: 'var(--t-600)' }}>Code: <strong style={{ color: 'var(--t-900)' }}>{currentHotel.hotel_code}</strong></span>
+              <span className="badge badge-active" style={{ fontSize: '10px', padding: '2px 8px' }}>
+                {activeModules.length} Active
               </span>
             </div>
           )}
@@ -109,9 +109,8 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
       {/* Navigation Links */}
       <div style={{ padding: '16px 12px', flex: 1, overflowY: 'auto' }}>
         {isSuperAdmin ? (
-          // Super Admin Navigation
           <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', padding: '0 10px 8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '0 10px 8px', letterSpacing: '0.04em' }}>
               Platform Administration
             </div>
             <NavItem
@@ -141,9 +140,8 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
             />
           </div>
         ) : (
-          // Hotel Owner Dynamic Navigation (Only shows enabled modules!)
           <div>
-            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', padding: '0 10px 8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '0 10px 8px', letterSpacing: '0.04em' }}>
               Hotel Operations
             </div>
 
@@ -154,14 +152,14 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
               label="Property Overview"
             />
 
-            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', padding: '16px 10px 8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '16px 10px 8px', letterSpacing: '0.04em' }}>
               Subscribed Modules
             </div>
 
             {allModulesList.map((m) => {
               const isSubscribed = activeModules.includes(m.code);
               return (
-                <div key={m.code} style={{ position: 'relative' }}>
+                <div key={m.code}>
                   <NavItem
                     active={currentTab === m.code}
                     onClick={() => {
@@ -172,9 +170,9 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
                     disabled={!isSubscribed}
                     badge={
                       isSubscribed ? (
-                        <CheckCircle2 size={13} color="var(--emerald)" />
+                        <CheckCircle2 size={13} color="var(--success)" />
                       ) : (
-                        <Lock size={12} color="var(--text-muted)" />
+                        <Lock size={12} color="var(--t-500)" />
                       )
                     }
                   />
@@ -186,29 +184,30 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
       </div>
 
       {/* User Footer */}
-      <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', background: 'rgba(0, 0, 0, 0.2)' }}>
+      <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-sub)', background: 'var(--surface-sub)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
             style={{
-              width: '34px',
-              height: '34px',
+              width: '32px',
+              height: '32px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              background: 'var(--brand-50)',
+              border: '1px solid var(--brand-200)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: '700',
-              color: 'white',
+              color: 'var(--brand)',
             }}
           >
             {user?.name?.[0] || 'U'}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--t-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user?.name}
             </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: '11px', color: 'var(--t-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user?.email}
             </div>
           </div>
@@ -228,47 +227,41 @@ function NavItem({ active, onClick, icon: Icon, label, disabled, badge, highligh
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '10px 14px',
-        borderRadius: 'var(--radius-md)',
-        background: active
-          ? 'linear-gradient(90deg, rgba(99, 102, 241, 0.16), rgba(99, 102, 241, 0.04))'
-          : 'transparent',
+        padding: '9px 12px',
+        borderRadius: 'var(--r-sm)',
+        background: active ? 'var(--brand-50)' : 'transparent',
         border: '1px solid',
-        borderColor: active ? 'rgba(99, 102, 241, 0.3)' : 'transparent',
-        color: active
-          ? '#a5b4fc'
-          : disabled
-          ? 'var(--text-muted)'
-          : 'var(--text-secondary)',
+        borderColor: active ? 'var(--brand-200)' : 'transparent',
+        color: active ? 'var(--brand)' : disabled ? 'var(--t-500)' : 'var(--t-700)',
         cursor: disabled ? 'not-allowed' : 'pointer',
         textAlign: 'left',
-        marginBottom: '4px',
+        marginBottom: '3px',
         transition: 'var(--transition)',
-        opacity: disabled ? 0.45 : 1,
-        fontFamily: 'var(--font-sans)',
-        fontSize: '13.5px',
+        opacity: disabled ? 0.5 : 1,
+        fontFamily: 'var(--font-body)',
+        fontSize: '13px',
         fontWeight: active ? '600' : '500',
       }}
       onMouseEnter={(e) => {
         if (!active && !disabled) {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-          e.currentTarget.style.color = 'var(--text-primary)';
+          e.currentTarget.style.background = 'var(--surface-hover)';
+          e.currentTarget.style.color = 'var(--t-900)';
         }
       }}
       onMouseLeave={(e) => {
         if (!active && !disabled) {
           e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = 'var(--text-secondary)';
+          e.currentTarget.style.color = 'var(--t-700)';
         }
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <Icon size={18} color={active ? 'var(--primary)' : 'currentColor'} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+        <Icon size={16} color={active ? 'var(--brand)' : 'currentColor'} />
         <span>{label}</span>
       </div>
       {badge && <div>{badge}</div>}
       {highlight && (
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)' }} />
+        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--brand)' }} />
       )}
     </button>
   );
