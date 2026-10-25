@@ -66,7 +66,7 @@ function AppContent() {
         <Navbar title={getPageTitle()} subtitle={getPageSubtitle()} />
 
         {isSuperAdmin ? (
-          <SuperAdminDashboard activeTab={currentTab} />
+          <SuperAdminDashboard activeTab={currentTab} onNavigateTab={setCurrentTab} />
         ) : (
           <HotelOwnerDashboard activeTab={currentTab} />
         )}

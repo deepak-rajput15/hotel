@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../api';
+import OverviewTab from './OverviewTab';
+import OrganizationsTab from './OrganizationsTab';
+import HotelsTab from './HotelsTab';
+import SubscriptionsTab from './SubscriptionsTab';
 import {
-  Building2,
-  Hotel,
-  ShieldCheck,
-  Plus,
-  Save,
   CheckCircle2,
   AlertCircle,
-  Calendar,
-  Layers,
+  Building2,
+  Hotel,
 } from 'lucide-react';
 
-export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
+export default function SuperAdminDashboard({ activeTab = 'overview', onNavigateTab }) {
   const [organizations, setOrganizations] = useState([]);
   const [hotels, setHotels] = useState([]);
   const [modules, setModules] = useState([]);
@@ -21,6 +20,9 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  // Filters
+  const [filterOrgId, setFilterOrgId] = useState(null);
 
   // Modals
   const [showOrgModal, setShowOrgModal] = useState(false);
@@ -122,7 +124,7 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
       if (res.success) {
         setNotification({
           type: 'success',
-          message: `Module access for ${selectedHotel.name} (${selectedHotel.hotel_code}) updated instantly!`,
+          message: `Module subscriptions for ${selectedHotel.name} (${selectedHotel.hotel_code}) saved successfully!`,
         });
 
         const hotelsRes = await adminApi.getHotels();
@@ -152,6 +154,15 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
           type: 'success',
           message: `Organization registered with ID: ${res.organization.org_code}`,
         });
+        setOrgForm({
+          name: '',
+          billing_email: '',
+          phone: '',
+          tax_number: '',
+          owner_name: '',
+          owner_email: '',
+          owner_password: 'Password@123',
+        });
         loadData();
       }
     } catch (err) {
@@ -174,6 +185,13 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
           type: 'success',
           message: `Hotel registered with ID: ${res.hotel.hotel_code}`,
         });
+        setHotelForm({
+          organization_id: '',
+          name: '',
+          city: '',
+          state: '',
+          selected_modules: ['front_office', 'rooms'],
+        });
         loadData();
       }
     } catch (err) {
@@ -181,12 +199,22 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
     }
   };
 
+  const handleSelectOrgForHotels = (orgId) => {
+    setFilterOrgId(orgId);
+    if (onNavigateTab) onNavigateTab('hotels');
+  };
+
+  const handleManageModulesForHotel = (hotel) => {
+    selectHotelForManagement(hotel);
+    if (onNavigateTab) onNavigateTab('subscriptions');
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: '36px', height: '36px', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: 'var(--t-500)', fontSize: '13px' }}>Loading platform administration...</p>
+          <p style={{ color: 'var(--t-500)', fontSize: '13px' }}>Loading platform dashboard...</p>
         </div>
       </div>
     );
@@ -219,295 +247,72 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
         </div>
       )}
 
-      {/* Metric Cards (Hygaar-IQ style: Clean white with subtle border) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <MetricCard
-          label="Registered Organizations"
-          value={organizations.length}
-          subtext="Hotel Owner Accounts"
-          icon={Building2}
-          color="var(--brand)"
+      {/* Render Dedicated Full-Page Tab */}
+      {activeTab === 'overview' && (
+        <OverviewTab
+          organizations={organizations}
+          hotels={hotels}
+          modules={modules}
+          onNavigateTab={onNavigateTab}
         />
-        <MetricCard
-          label="Active Hotel Properties"
-          value={hotels.length}
-          subtext="Operational Tenancies"
-          icon={Hotel}
-          color="var(--success)"
-        />
-        <MetricCard
-          label="Available Platform Modules"
-          value={modules.length}
-          subtext="Front Office, POS, KOT, etc."
-          icon={Layers}
-          color="#0891b2"
-        />
-        <MetricCard
-          label="Multi-Tenant Isolation"
-          value="Row-Level (PostgreSQL)"
-          subtext="Scope Active: hotel_id"
-          icon={ShieldCheck}
-          color="#9333ea"
-        />
-      </div>
-
-      {/* Main Feature: Module Subscriptions Matrix */}
-      {(activeTab === 'subscriptions' || activeTab === 'overview') && (
-        <div className="card" style={{ marginBottom: '28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                <ShieldCheck size={18} color="var(--brand)" />
-                <h2 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--t-900)' }}>
-                  Dynamic Module Subscriptions & Entitlements
-                </h2>
-              </div>
-              <p style={{ fontSize: '13px', color: 'var(--t-600)' }}>
-                Turn modules ON or OFF for any hotel in real-time. Changes apply instantly without touching code.
-              </p>
-            </div>
-
-            {/* Hotel Selector */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '12.5px', color: 'var(--t-500)', fontWeight: '600' }}>Target Hotel:</span>
-              <select
-                className="form-select"
-                value={selectedHotel?.id || ''}
-                onChange={(e) => {
-                  const h = hotels.find((item) => item.id === e.target.value);
-                  if (h) selectHotelForManagement(h);
-                }}
-                style={{ width: '260px' }}
-              >
-                {hotels.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name} ({h.hotel_code})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {selectedHotel && (
-            <div>
-              {/* Hotel Overview Banner */}
-              <div
-                style={{
-                  background: 'var(--surface-sub)',
-                  padding: '12px 16px',
-                  borderRadius: 'var(--r-sm)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '20px',
-                  border: '1px solid var(--border-sub)',
-                }}
-              >
-                <div>
-                  <span style={{ fontSize: '11px', color: 'var(--t-500)', textTransform: 'uppercase', fontWeight: '700' }}>Configuring Access For:</span>
-                  <div style={{ fontSize: '14.5px', fontWeight: '700', color: 'var(--t-900)', marginTop: '2px' }}>
-                    {selectedHotel.name} <span style={{ color: 'var(--brand)', marginLeft: '6px' }}>[{selectedHotel.hotel_code}]</span>
-                  </div>
-                </div>
-                <div>
-                  <span style={{ fontSize: '11px', color: 'var(--t-500)', textTransform: 'uppercase', fontWeight: '700' }}>Organization:</span>
-                  <div style={{ fontSize: '13.5px', color: 'var(--t-700)', marginTop: '2px' }}>
-                    {selectedHotel.organization?.name || 'Apex Hospitality Group'} ({selectedHotel.organization?.org_code || 'ORG-1001'})
-                  </div>
-                </div>
-              </div>
-
-              {/* Module Toggle Matrix Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '16px', marginBottom: '22px' }}>
-                {modules.map((mod) => {
-                  const toggleState = moduleToggles[mod.code] || { enabled: false, expires_at: '' };
-                  const isEnabled = toggleState.enabled;
-
-                  return (
-                    <div
-                      key={mod.code}
-                      style={{
-                        background: isEnabled ? 'var(--white)' : 'var(--surface-sub)',
-                        border: '1px solid',
-                        borderColor: isEnabled ? 'var(--border)' : 'var(--border-sub)',
-                        borderRadius: 'var(--r-card)',
-                        padding: '16px',
-                        boxShadow: isEnabled ? 'var(--shadow-xs)' : 'none',
-                        transition: 'var(--transition)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '10px' }}>
-                        <div>
-                          <div style={{ fontSize: '14.5px', fontWeight: '700', color: 'var(--t-900)' }}>{mod.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--brand)', fontFamily: 'monospace', marginTop: '2px' }}>
-                            code: {mod.code}
-                          </div>
-                        </div>
-
-                        {/* Interactive Toggle Switch */}
-                        <label className="toggle-switch">
-                          <input
-                            type="checkbox"
-                            checked={isEnabled}
-                            onChange={() => handleToggle(mod.code)}
-                          />
-                          <span className="toggle-slider" />
-                        </label>
-                      </div>
-
-                      <p style={{ fontSize: '12px', color: 'var(--t-600)', marginBottom: '14px', lineHeight: 1.4 }}>
-                        {mod.description}
-                      </p>
-
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid var(--border-sub)' }}>
-                        <span className={`badge ${isEnabled ? 'badge-success' : 'badge-inactive'}`}>
-                          {isEnabled ? 'Subscribed' : 'Disabled'}
-                        </span>
-
-                        {isEnabled && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Calendar size={13} color="var(--t-500)" />
-                            <input
-                              type="date"
-                              value={toggleState.expires_at || ''}
-                              onChange={(e) => handleExpiryChange(mod.code, e.target.value)}
-                              placeholder="Perpetual"
-                              style={{
-                                background: 'var(--white)',
-                                border: '1px solid var(--border)',
-                                borderRadius: 'var(--r-sm)',
-                                color: 'var(--t-700)',
-                                fontSize: '11px',
-                                padding: '3px 6px',
-                                outline: 'none',
-                              }}
-                              title="Expiry date (Leave empty for perpetual)"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Action Bar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
-                <button
-                  onClick={handleSaveModules}
-                  disabled={saving}
-                  className="btn btn-primary"
-                >
-                  <Save size={15} />
-                  <span>{saving ? 'Saving Subscriptions...' : 'Save & Publish Changes'}</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       )}
 
-      {/* Organizations & Hotels Tables */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-        {/* Organizations Section */}
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '15.5px', fontWeight: '700', color: 'var(--t-900)' }}>Hotel Organizations</h3>
-            <button onClick={() => setShowOrgModal(true)} className="btn btn-secondary btn-sm">
-              <Plus size={13} />
-              <span>Onboard Owner</span>
-            </button>
-          </div>
+      {activeTab === 'organizations' && (
+        <OrganizationsTab
+          organizations={organizations}
+          onOpenOnboardModal={() => setShowOrgModal(true)}
+          onSelectOrgForHotels={handleSelectOrgForHotels}
+        />
+      )}
 
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Organization Name</th>
-                  <th>Owner</th>
-                  <th>Hotels</th>
-                </tr>
-              </thead>
-              <tbody>
-                {organizations.map((org) => (
-                  <tr key={org.id}>
-                    <td>
-                      <span className="badge badge-brand">{org.org_code}</span>
-                    </td>
-                    <td style={{ fontWeight: '600', color: 'var(--t-900)' }}>{org.name}</td>
-                    <td>{org.users?.[0]?.name || org.billing_email}</td>
-                    <td>
-                      <span className="badge badge-success">{org.hotels_count || org.hotels?.length || 0}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {activeTab === 'hotels' && (
+        <HotelsTab
+          hotels={hotels}
+          organizations={organizations}
+          onOpenHotelModal={() => setShowHotelModal(true)}
+          onManageModules={handleManageModulesForHotel}
+          filterOrgId={filterOrgId}
+          onClearOrgFilter={() => setFilterOrgId(null)}
+        />
+      )}
 
-        {/* Hotels Directory Section */}
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '15.5px', fontWeight: '700', color: 'var(--t-900)' }}>Registered Hotel Properties</h3>
-            <button onClick={() => setShowHotelModal(true)} className="btn btn-secondary btn-sm">
-              <Plus size={13} />
-              <span>Register Hotel</span>
-            </button>
-          </div>
+      {activeTab === 'subscriptions' && (
+        <SubscriptionsTab
+          hotels={hotels}
+          modules={modules}
+          selectedHotel={selectedHotel}
+          moduleToggles={moduleToggles}
+          onSelectHotel={selectHotelForManagement}
+          onToggleModule={handleToggle}
+          onExpiryChange={handleExpiryChange}
+          onSaveModules={handleSaveModules}
+          saving={saving}
+        />
+      )}
 
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Hotel Code</th>
-                  <th>Name</th>
-                  <th>City</th>
-                  <th>Subscribed Modules</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hotels.map((h) => (
-                  <tr key={h.id}>
-                    <td>
-                      <strong style={{ color: 'var(--brand)', fontFamily: 'monospace' }}>{h.hotel_code}</strong>
-                    </td>
-                    <td style={{ fontWeight: '600', color: 'var(--t-900)' }}>{h.name}</td>
-                    <td>{h.city || 'India'}</td>
-                    <td>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {(h.subscriptions || [])
-                          .filter((s) => s.status === 'ACTIVE')
-                          .map((s) => (
-                            <span key={s.id || s.module?.code} className="badge badge-success" style={{ fontSize: '10px', padding: '2px 6px' }}>
-                              {s.module?.name || s.module?.code}
-                            </span>
-                          ))}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* Onboard Organization Modal */}
+      {/* Onboard Organization Modal (Professional & Generous) */}
       {showOrgModal && (
         <div className="modal-overlay" onClick={() => setShowOrgModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--t-900)', marginBottom: '4px' }}>
-              Onboard Hotel Owner / Organization
-            </h3>
-            <p style={{ fontSize: '12.5px', color: 'var(--t-500)', marginBottom: '18px' }}>
-              The platform generates the unique Organization Code and creates the primary owner credentials.
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '600px', padding: '32px' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: 'var(--r-sm)', background: 'var(--brand-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
+                <Building2 size={18} />
+              </div>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--t-900)' }}>
+                Onboard Hotel Owner / Organization
+              </h3>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--t-500)', marginBottom: '22px' }}>
+              The platform will provision a unique Organization Code (e.g., ORG-1002) and set up the primary owner account.
             </p>
 
             <form onSubmit={handleCreateOrg}>
               <div className="form-group">
-                <label className="form-label">Organization / Business Name *</label>
+                <label className="form-label">Business / Organization Name *</label>
                 <input
                   type="text"
                   className="form-input"
@@ -518,7 +323,7 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
                   <label className="form-label">Billing Email *</label>
                   <input
@@ -531,7 +336,7 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Phone Number</label>
+                  <label className="form-label">Contact Phone</label>
                   <input
                     type="text"
                     className="form-input"
@@ -542,8 +347,8 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
                 </div>
               </div>
 
-              <div style={{ padding: '14px', background: 'var(--surface-sub)', borderRadius: 'var(--r-card)', margin: '16px 0', border: '1px solid var(--border-sub)' }}>
-                <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--t-900)', marginBottom: '10px' }}>
+              <div style={{ padding: '16px 18px', background: 'var(--surface-sub)', borderRadius: 'var(--r-card)', margin: '18px 0', border: '1px solid var(--border-sub)' }}>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--t-900)', marginBottom: '12px' }}>
                   Owner Account Credentials
                 </div>
                 <div className="form-group">
@@ -557,9 +362,9 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
                     onChange={(e) => setOrgForm({ ...orgForm, owner_name: e.target.value })}
                   />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div className="form-group">
-                    <label className="form-label">Owner Email *</label>
+                    <label className="form-label">Owner Login Email *</label>
                     <input
                       type="email"
                       className="form-input"
@@ -582,7 +387,7 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '22px' }}>
                 <button type="button" onClick={() => setShowOrgModal(false)} className="btn btn-secondary">
                   Cancel
                 </button>
@@ -595,27 +400,36 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
         </div>
       )}
 
-      {/* Provision Hotel Modal */}
+      {/* Provision Hotel Modal (Professional & Generous) */}
       {showHotelModal && (
         <div className="modal-overlay" onClick={() => setShowHotelModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--t-900)', marginBottom: '4px' }}>
-              Register Hotel Property
-            </h3>
-            <p style={{ fontSize: '12.5px', color: 'var(--t-500)', marginBottom: '18px' }}>
-              The platform generates the unique Hotel ID (e.g., HTL-1004).
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '580px', padding: '32px' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: 'var(--r-sm)', background: 'var(--success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success)' }}>
+                <Hotel size={18} />
+              </div>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--t-900)' }}>
+                Register New Hotel Property
+              </h3>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--t-500)', marginBottom: '22px' }}>
+              The system will automatically allocate a unique Hotel ID (e.g., HTL-1004) and link it to the selected owner.
             </p>
 
             <form onSubmit={handleCreateHotel}>
               <div className="form-group">
-                <label className="form-label">Parent Organization *</label>
+                <label className="form-label">Assign to Organization *</label>
                 <select
                   className="form-select"
                   required
                   value={hotelForm.organization_id}
                   onChange={(e) => setHotelForm({ ...hotelForm, organization_id: e.target.value })}
                 >
-                  <option value="">Select Organization</option>
+                  <option value="">Select Parent Organization</option>
                   {organizations.map((org) => (
                     <option key={org.id} value={org.id}>
                       {org.name} ({org.org_code})
@@ -625,7 +439,7 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Hotel Name *</label>
+                <label className="form-label">Hotel / Property Name *</label>
                 <input
                   type="text"
                   className="form-input"
@@ -636,7 +450,7 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
                   <label className="form-label">City *</label>
                   <input
@@ -660,51 +474,18 @@ export default function SuperAdminDashboard({ activeTab = 'subscriptions' }) {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '22px' }}>
                 <button type="button" onClick={() => setShowHotelModal(false)} className="btn btn-secondary">
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Provision Hotel
+                  Provision Hotel Property
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function MetricCard({ label, value, subtext, icon: Icon, color }) {
-  return (
-    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '18px' }}>
-      <div
-        style={{
-          width: '42px',
-          height: '42px',
-          borderRadius: 'var(--r-card)',
-          background: 'var(--surface-sub)',
-          border: '1px solid var(--border-sub)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: color,
-        }}
-      >
-        <Icon size={20} />
-      </div>
-      <div>
-        <div style={{ fontSize: '11.5px', fontWeight: '600', color: 'var(--t-500)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-          {label}
-        </div>
-        <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--t-900)', marginTop: '1px' }}>
-          {value}
-        </div>
-        <div style={{ fontSize: '11.5px', color: 'var(--t-600)', marginTop: '1px' }}>
-          {subtext}
-        </div>
-      </div>
     </div>
   );
 }
