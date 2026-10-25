@@ -115,6 +115,17 @@ class AuthController extends Controller
                 ->get();
         }
 
+        $assignedRole = null;
+        if (!$user->isPlatformAdmin() && !$user->isOrgOwner()) {
+            $access = $user->hotelAccess()->with('role')->first();
+            if ($access && $access->role) {
+                $assignedRole = [
+                    'name' => $access->role->name,
+                    'slug' => $access->role->slug,
+                ];
+            }
+        }
+
         return [
             'id' => $user->id,
             'name' => $user->name,
@@ -122,6 +133,7 @@ class AuthController extends Controller
             'phone' => $user->phone,
             'is_platform_admin' => $user->isPlatformAdmin(),
             'is_org_owner' => $user->isOrgOwner(),
+            'assigned_role' => $assignedRole,
             'organization' => $user->organization ? [
                 'id' => $user->organization->id,
                 'org_code' => $user->organization->org_code,

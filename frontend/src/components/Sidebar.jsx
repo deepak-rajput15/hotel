@@ -56,7 +56,7 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
               GrandStay<span style={{ color: 'var(--brand)' }}>.</span>
             </h2>
             <p style={{ fontSize: '11px', color: 'var(--t-500)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {isSuperAdmin ? 'Platform Super Admin' : 'Hotel Owner Portal'}
+              {isSuperAdmin ? 'Platform Super Admin' : (user?.assigned_role?.name || (user?.is_org_owner ? 'Hotel Owner Portal' : 'Staff Terminal'))}
             </p>
           </div>
         </div>
@@ -243,40 +243,55 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
               label="Property Overview"
             />
 
-            <NavItem
-              active={currentTab === 'staff'}
-              onClick={() => setCurrentTab('staff')}
-              icon={ShieldCheck}
-              label="Staff & Module Access"
-            />
+            {user?.is_org_owner && (
+              <NavItem
+                active={currentTab === 'staff'}
+                onClick={() => setCurrentTab('staff')}
+                icon={ShieldCheck}
+                label="Staff & Module Access"
+              />
+            )}
 
             <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '16px 10px 8px', letterSpacing: '0.04em' }}>
-              Subscribed Modules
+              {user?.assigned_role ? 'Assigned Operational Desk' : 'Subscribed Modules'}
             </div>
 
-            {allModulesList.map((m) => {
-              const isSubscribed = activeModules.includes(m.code);
-              return (
-                <div key={m.code}>
-                  <NavItem
-                    active={currentTab === m.code}
-                    onClick={() => {
-                      if (isSubscribed) setCurrentTab(m.code);
-                    }}
-                    icon={m.icon}
-                    label={m.name}
-                    disabled={!isSubscribed}
-                    badge={
-                      isSubscribed ? (
-                        <CheckCircle2 size={13} color="var(--success)" />
-                      ) : (
-                        <Lock size={12} color="var(--t-500)" />
-                      )
-                    }
-                  />
-                </div>
-              );
-            })}
+            {(() => {
+              const roleAllowedModules = {
+                'head-chef': ['kitchen'],
+                'front-desk': ['front_office', 'rooms'],
+                'restaurant-cashier': ['restaurant'],
+                'storekeeper': ['store', 'purchase'],
+              };
+              const staffPermitted = user?.assigned_role ? (roleAllowedModules[user.assigned_role.slug] || []) : null;
+              const displayList = staffPermitted
+                ? allModulesList.filter(m => staffPermitted.includes(m.code))
+                : allModulesList;
+
+              return displayList.map((m) => {
+                const isSubscribed = activeModules.includes(m.code);
+                return (
+                  <div key={m.code}>
+                    <NavItem
+                      active={currentTab === m.code}
+                      onClick={() => {
+                        if (isSubscribed) setCurrentTab(m.code);
+                      }}
+                      icon={m.icon}
+                      label={m.name}
+                      disabled={!isSubscribed}
+                      badge={
+                        isSubscribed ? (
+                          <CheckCircle2 size={13} color="var(--success)" />
+                        ) : (
+                          <Lock size={12} color="var(--t-500)" />
+                        )
+                      }
+                    />
+                  </div>
+                );
+              });
+            })()}
           </div>
         )}
       </div>

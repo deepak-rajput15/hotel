@@ -7,6 +7,9 @@ use App\Domain\Subscriptions\Actions\AssignHotelModulesAction;
 use App\Domain\Subscriptions\Models\Module;
 use App\Domain\Tenancy\Actions\CreateHotelAction;
 use App\Domain\Tenancy\Actions\CreateOrganizationAction;
+use App\Domain\Tenancy\Models\Hotel;
+use App\Domain\Tenancy\Models\Organization;
+use App\Domain\Tenancy\Models\UserHotelAccess;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -100,44 +103,126 @@ class DatabaseSeeder extends Seeder
         $createHotelAction = app(CreateHotelAction::class);
         $assignModulesAction = app(AssignHotelModulesAction::class);
 
-        $orgData = $createOrgAction->execute([
-            'org_code' => 'ORG-1001',
-            'name' => 'Apex Hospitality Group',
-            'billing_email' => 'billing@apexhospitality.com',
-            'phone' => '+91 9876543210',
-            'tax_number' => '27AAACA1234A1Z5',
-            'owner_name' => 'Rajesh Sharma',
-            'owner_email' => 'owner@apexhospitality.com',
-            'owner_password' => 'Password@123',
-        ]);
+        $organization = Organization::where('org_code', 'ORG-1001')->first();
 
-        $organization = $orgData['organization'];
+        if (!$organization) {
+            $orgData = $createOrgAction->execute([
+                'org_code' => 'ORG-1001',
+                'name' => 'Apex Hospitality Group',
+                'billing_email' => 'billing@apexhospitality.com',
+                'phone' => '+91 9876543210',
+                'tax_number' => '27AAACA1234A1Z5',
+                'owner_name' => 'Rajesh Sharma',
+                'owner_email' => 'owner@apexhospitality.com',
+                'owner_password' => 'Password@123',
+            ]);
 
-        // Hotel A: Subscribed to Front Office, Rooms
-        $hotelA = $createHotelAction->execute($organization, [
-            'hotel_code' => 'HTL-1001',
-            'name' => 'Apex Grand Palace',
-            'city' => 'Mumbai',
-            'state' => 'Maharashtra',
-            'modules' => ['front_office', 'rooms'],
-        ]);
+            $organization = $orgData['organization'];
 
-        // Hotel B: Subscribed to Front Office, Rooms, Restaurant, Kitchen
-        $hotelB = $createHotelAction->execute($organization, [
-            'hotel_code' => 'HTL-1002',
-            'name' => 'Apex Sea Breeze Resort',
-            'city' => 'Goa',
-            'state' => 'Goa',
-            'modules' => ['front_office', 'rooms', 'restaurant', 'kitchen'],
-        ]);
+            // Hotel A: Subscribed to Front Office, Rooms
+            $hotelA = $createHotelAction->execute($organization, [
+                'hotel_code' => 'HTL-1001',
+                'name' => 'Apex Grand Palace',
+                'city' => 'Mumbai',
+                'state' => 'Maharashtra',
+                'modules' => ['front_office', 'rooms'],
+            ]);
 
-        // Hotel C: Subscribed to Store, Purchase
-        $hotelC = $createHotelAction->execute($organization, [
-            'hotel_code' => 'HTL-1003',
-            'name' => 'Apex Express Inn',
-            'city' => 'Delhi',
-            'state' => 'Delhi',
-            'modules' => ['store', 'purchase'],
-        ]);
+            // Hotel B: Subscribed to Front Office, Rooms, Restaurant, Kitchen
+            $hotelB = $createHotelAction->execute($organization, [
+                'hotel_code' => 'HTL-1002',
+                'name' => 'Apex Sea Breeze Resort',
+                'city' => 'Goa',
+                'state' => 'Goa',
+                'modules' => ['front_office', 'rooms', 'restaurant', 'kitchen'],
+            ]);
+
+            // Hotel C: Subscribed to Store, Purchase
+            $hotelC = $createHotelAction->execute($organization, [
+                'hotel_code' => 'HTL-1003',
+                'name' => 'Apex Express Inn',
+                'city' => 'Delhi',
+                'state' => 'Delhi',
+                'modules' => ['store', 'purchase'],
+            ]);
+        } else {
+            $hotelA = Hotel::where('hotel_code', 'HTL-1001')->first();
+            $hotelB = Hotel::where('hotel_code', 'HTL-1002')->first();
+            $hotelC = Hotel::where('hotel_code', 'HTL-1003')->first();
+        }
+
+        // 5. Seed Granular Tier 3 Staff Logins for Each Module
+        $frontDeskRole = Role::where('slug', 'front-desk')->first();
+        $cashierRole = Role::where('slug', 'restaurant-cashier')->first();
+        $chefRole = Role::where('slug', 'head-chef')->first();
+        $storeRole = Role::where('slug', 'storekeeper')->first();
+
+        // Front Desk Receptionist (Assigned to Hotel A: HTL-1001)
+        $frontDeskUser = User::updateOrCreate(
+            ['email' => 'frontdesk.priya@apexhospitality.com'],
+            [
+                'organization_id' => $organization->id,
+                'name' => 'Priya Sharma (Front Desk)',
+                'password' => Hash::make('Password@123'),
+                'is_platform_admin' => false,
+                'is_org_owner' => false,
+                'status' => 'ACTIVE',
+            ]
+        );
+        UserHotelAccess::updateOrCreate(
+            ['user_id' => $frontDeskUser->id, 'hotel_id' => $hotelA->id],
+            ['role_id' => $frontDeskRole->id, 'is_default' => true]
+        );
+
+        // Head Chef (Assigned to Hotel B: HTL-1002)
+        $chefUser = User::updateOrCreate(
+            ['email' => 'chef.sanjeev@apexhospitality.com'],
+            [
+                'organization_id' => $organization->id,
+                'name' => 'Chef Sanjeev Kapoor',
+                'password' => Hash::make('Password@123'),
+                'is_platform_admin' => false,
+                'is_org_owner' => false,
+                'status' => 'ACTIVE',
+            ]
+        );
+        UserHotelAccess::updateOrCreate(
+            ['user_id' => $chefUser->id, 'hotel_id' => $hotelB->id],
+            ['role_id' => $chefRole->id, 'is_default' => true]
+        );
+
+        // Restaurant Cashier / Waiter (Assigned to Hotel B: HTL-1002)
+        $cashierUser = User::updateOrCreate(
+            ['email' => 'cashier.rahul@apexhospitality.com'],
+            [
+                'organization_id' => $organization->id,
+                'name' => 'Rahul Verma (Cashier)',
+                'password' => Hash::make('Password@123'),
+                'is_platform_admin' => false,
+                'is_org_owner' => false,
+                'status' => 'ACTIVE',
+            ]
+        );
+        UserHotelAccess::updateOrCreate(
+            ['user_id' => $cashierUser->id, 'hotel_id' => $hotelB->id],
+            ['role_id' => $cashierRole->id, 'is_default' => true]
+        );
+
+        // Storekeeper (Assigned to Hotel C: HTL-1003)
+        $storeUser = User::updateOrCreate(
+            ['email' => 'store.amit@apexhospitality.com'],
+            [
+                'organization_id' => $organization->id,
+                'name' => 'Amit Patel (Storekeeper)',
+                'password' => Hash::make('Password@123'),
+                'is_platform_admin' => false,
+                'is_org_owner' => false,
+                'status' => 'ACTIVE',
+            ]
+        );
+        UserHotelAccess::updateOrCreate(
+            ['user_id' => $storeUser->id, 'hotel_id' => $hotelC->id],
+            ['role_id' => $storeRole->id, 'is_default' => true]
+        );
     }
 }
