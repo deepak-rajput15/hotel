@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Hotel, Shield, Building, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Hotel, Lock, Mail, ArrowRight } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
@@ -17,22 +17,6 @@ export default function Login() {
       await login(email, password);
     } catch (err) {
       setError(err.data?.message || err.message || 'Invalid email or password');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickLogin = async (role) => {
-    setLoading(true);
-    setError(null);
-    try {
-      if (role === 'admin') {
-        await login('admin@hotelsaask.com', 'Password@123');
-      } else {
-        await login('owner@apexhospitality.com', 'Password@123');
-      }
-    } catch (err) {
-      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -103,7 +87,7 @@ export default function Login() {
         )}
 
         {/* Credentials Form */}
-        <form onSubmit={handleSubmit} style={{ marginBottom: '24px' }}>
+        <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Email Address</label>
             <div style={{ position: 'relative' }}>
@@ -140,49 +124,12 @@ export default function Login() {
             type="submit"
             disabled={loading}
             className="btn btn-primary"
-            style={{ width: '100%', padding: '11px', fontSize: '14px', marginTop: '6px' }}
+            style={{ width: '100%', padding: '11px', fontSize: '14px', marginTop: '12px' }}
           >
             <span>{loading ? 'Authenticating...' : 'Sign In to Dashboard'}</span>
             <ArrowRight size={15} />
           </button>
         </form>
-
-        {/* Quick Demo Logins */}
-        <div style={{ paddingTop: '18px', borderTop: '1px solid var(--border-sub)' }}>
-          <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', color: 'var(--t-500)', textAlign: 'center', marginBottom: '12px', letterSpacing: '0.04em' }}>
-            Instant Demo Logins
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin')}
-              disabled={loading}
-              className="btn btn-secondary"
-              style={{ fontSize: '12px', padding: '9px 8px', flexDirection: 'column', gap: '3px' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand)' }}>
-                <Shield size={14} />
-                <strong>Super Admin</strong>
-              </div>
-              <span style={{ fontSize: '10.5px', color: 'var(--t-500)' }}>Platform Control</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('owner')}
-              disabled={loading}
-              className="btn btn-secondary"
-              style={{ fontSize: '12px', padding: '9px 8px', flexDirection: 'column', gap: '3px' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--success)' }}>
-                <Building size={14} />
-                <strong>Hotel Owner</strong>
-              </div>
-              <span style={{ fontSize: '10.5px', color: 'var(--t-500)' }}>Apex Group (3 Hotels)</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
