@@ -100,14 +100,18 @@ class AuthController extends Controller
         $hotels = [];
 
         if ($user->isPlatformAdmin()) {
-            $hotels = Hotel::select('id', 'hotel_code', 'name', 'status')->get();
+            $hotels = Hotel::with(['subscriptions.module'])
+                ->select('id', 'organization_id', 'hotel_code', 'name', 'city', 'status')
+                ->get();
         } elseif ($user->isOrgOwner() && $user->organization) {
             $hotels = $user->organization->hotels()
-                ->select('id', 'hotel_code', 'name', 'status')
+                ->with(['subscriptions.module'])
+                ->select('id', 'organization_id', 'hotel_code', 'name', 'city', 'status')
                 ->get();
         } else {
             $hotels = $user->hotels()
-                ->select('hotels.id', 'hotels.hotel_code', 'hotels.name', 'hotels.status')
+                ->with(['subscriptions.module'])
+                ->select('hotels.id', 'hotels.organization_id', 'hotels.hotel_code', 'hotels.name', 'hotels.city', 'hotels.status')
                 ->get();
         }
 

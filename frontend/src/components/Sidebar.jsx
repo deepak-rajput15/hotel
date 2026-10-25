@@ -66,15 +66,23 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
       {!isSuperAdmin && (
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-sub)', background: 'var(--surface-sub)' }}>
           <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', display: 'block', marginBottom: '6px' }}>
-            Active Property
+            Active Property Context
           </label>
           <div style={{ position: 'relative' }}>
             <select
               className="form-select"
-              value={currentHotel?.id || ''}
+              value={currentHotel?.id || 'ALL'}
               onChange={(e) => {
-                const selected = accessibleHotels.find(h => h.id === e.target.value);
-                if (selected) selectHotel(selected);
+                if (e.target.value === 'ALL') {
+                  selectHotel('ALL');
+                  setCurrentTab('portfolio_overview');
+                } else {
+                  const selected = accessibleHotels.find(h => h.id === e.target.value);
+                  if (selected) {
+                    selectHotel(selected);
+                    setCurrentTab('dashboard');
+                  }
+                }
               }}
               style={{
                 fontSize: '13px',
@@ -87,21 +95,39 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
                 fontWeight: '600',
               }}
             >
-              {accessibleHotels.map(h => (
-                <option key={h.id} value={h.id}>
-                  {h.name} ({h.hotel_code})
-                </option>
-              ))}
+              {accessibleHotels.length > 1 && (
+                <option value="ALL">🌐 All Properties (Consolidated Overview)</option>
+              )}
+              <optgroup label="Individual Hotel Properties">
+                {accessibleHotels.map(h => (
+                  <option key={h.id} value={h.id}>
+                    {h.name} ({h.hotel_code})
+                  </option>
+                ))}
+              </optgroup>
             </select>
             <ChevronDown size={14} style={{ position: 'absolute', right: '10px', top: '10px', pointerEvents: 'none', color: 'var(--t-500)' }} />
           </div>
-          {currentHotel && (
+          {currentHotel?.id === 'ALL' ? (
             <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--t-600)' }}>Code: <strong style={{ color: 'var(--t-900)' }}>{currentHotel.hotel_code}</strong></span>
-              <span className="badge badge-active" style={{ fontSize: '10px', padding: '2px 8px' }}>
-                {activeModules.length} Active
+              <span style={{ fontSize: '11.5px', color: 'var(--t-600)' }}>
+                Scope: <strong style={{ color: 'var(--brand)' }}>{accessibleHotels.length} Properties</strong>
+              </span>
+              <span className="badge badge-brand" style={{ fontSize: '10px', padding: '2px 8px' }}>
+                Group Portfolio
               </span>
             </div>
+          ) : (
+            currentHotel && (
+              <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '11.5px', color: 'var(--t-600)' }}>
+                  Code: <strong style={{ color: 'var(--t-900)' }}>{currentHotel.hotel_code}</strong>
+                </span>
+                <span className="badge badge-active" style={{ fontSize: '10px', padding: '2px 8px' }}>
+                  {activeModules.length} Subscribed
+                </span>
+              </div>
+            )
           )}
         </div>
       )}
@@ -139,10 +165,75 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
               highlight
             />
           </div>
+        ) : currentHotel?.id === 'ALL' ? (
+          <div>
+            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '0 10px 8px', letterSpacing: '0.04em' }}>
+              Portfolio Management
+            </div>
+
+            <NavItem
+              active={currentTab === 'portfolio_overview' || currentTab === 'dashboard'}
+              onClick={() => setCurrentTab('portfolio_overview')}
+              icon={Layers}
+              label="Consolidated Portfolio"
+            />
+
+            <NavItem
+              active={currentTab === 'staff'}
+              onClick={() => setCurrentTab('staff')}
+              icon={ShieldCheck}
+              label="Staff Access & Logins"
+              highlight
+            />
+
+            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '18px 10px 8px', letterSpacing: '0.04em' }}>
+              Switch To Property Desk
+            </div>
+
+            {accessibleHotels.map((h) => (
+              <button
+                key={h.id}
+                onClick={() => {
+                  selectHotel(h);
+                  setCurrentTab('dashboard');
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--r-sm)',
+                  background: 'transparent',
+                  border: '1px solid transparent',
+                  color: 'var(--t-700)',
+                  cursor: 'pointer',
+                  fontSize: '12.5px',
+                  textAlign: 'left',
+                  marginBottom: '3px',
+                  transition: 'var(--transition)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--surface-hover)';
+                  e.currentTarget.style.color = 'var(--t-900)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = 'var(--t-700)';
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <Hotel size={14} color="var(--t-500)" />
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.name}</span>
+                </div>
+                <span className="badge badge-brand" style={{ fontSize: '9.5px', padding: '1px 5px' }}>{h.hotel_code}</span>
+              </button>
+            ))}
+          </div>
         ) : (
           <div>
             <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '0 10px 8px', letterSpacing: '0.04em' }}>
-              Hotel Operations
+              Property Desk
             </div>
 
             <NavItem
@@ -150,6 +241,13 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
               onClick={() => setCurrentTab('dashboard')}
               icon={Layers}
               label="Property Overview"
+            />
+
+            <NavItem
+              active={currentTab === 'staff'}
+              onClick={() => setCurrentTab('staff')}
+              icon={ShieldCheck}
+              label="Staff & Module Access"
             />
 
             <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '16px 10px 8px', letterSpacing: '0.04em' }}>

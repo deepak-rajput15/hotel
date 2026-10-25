@@ -37,8 +37,16 @@ function AppContent() {
         default: return 'Platform Administration';
       }
     } else {
+      if (currentHotel?.id === 'ALL') {
+        switch (currentTab) {
+          case 'staff': return 'Staff & Access Credentials';
+          case 'properties': return 'Group Properties Performance';
+          default: return `${user?.organization?.name || 'Group'} &bull; Consolidated Portfolio`;
+        }
+      }
       switch (currentTab) {
         case 'dashboard': return `${currentHotel?.name || 'Hotel'} Dashboard`;
+        case 'staff': return `${currentHotel?.name || 'Hotel'} &bull; Staff Management`;
         case 'front_office': return 'Front Office Operations';
         case 'rooms': return 'Rooms Management & Rack Grid';
         case 'restaurant': return 'Restaurant & Dining POS';
@@ -54,7 +62,10 @@ function AppContent() {
     if (isSuperAdmin) {
       return 'Manage hotel owner accounts, provision properties, and toggle modular subscription access.';
     } else {
-      return `Operational tenant console for property code: ${currentHotel?.hotel_code || 'HTL-1001'}`;
+      if (currentHotel?.id === 'ALL') {
+        return `Consolidated enterprise view aggregated across all ${user?.accessible_hotels?.length || 0} properties`;
+      }
+      return `Operational tenant console for property code: ${currentHotel?.hotel_code || 'HTL-1001'} (${currentHotel?.city || 'India'})`;
     }
   };
 

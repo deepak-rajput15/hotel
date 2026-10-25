@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { hotelApi } from '../../api';
+import ConsolidatedPortfolioView from './ConsolidatedPortfolioView';
+import StaffManagementTab from './StaffManagementTab';
 import {
   Bed,
   ConciergeBell,
@@ -16,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
-  const { user, currentHotel, activeModules } = useAuth();
+  const { user, currentHotel, activeModules, selectHotel } = useAuth();
   const [moduleApiStatus, setModuleApiStatus] = useState(null);
   const [testingApi, setTestingApi] = useState(false);
 
@@ -50,6 +52,24 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
   };
 
   const isModuleActive = (code) => activeModules.includes(code);
+
+  // 1. Staff Management Route (Tier 2 Owner generates Tier 3 credentials)
+  if (activeTab === 'staff') {
+    return <StaffManagementTab activeHotelId={currentHotel?.id} />;
+  }
+
+  // 2. Multi-Hotel Consolidated Portfolio Route
+  if (currentHotel?.id === 'ALL' || activeTab === 'portfolio_overview' || activeTab === 'properties') {
+    return (
+      <div className="page-body">
+        <ConsolidatedPortfolioView
+          organization={user?.organization}
+          hotels={user?.accessible_hotels || []}
+          onSelectSpecificHotel={(hotel) => selectHotel(hotel)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="page-body">

@@ -28,14 +28,17 @@ export function AuthProvider({ children }) {
         // Resolve initial hotel
         const storedHotelId = localStorage.getItem('hotel_saas_current_hotel_id');
         const accessible = res.user.accessible_hotels || [];
-        
-        let selected = accessible.find(h => h.id === storedHotelId || h.hotel_code === storedHotelId);
-        if (!selected && accessible.length > 0) {
-          selected = accessible[0];
-        }
 
-        if (selected) {
-          selectHotel(selected);
+        if (storedHotelId === 'ALL' || (!storedHotelId && res.user.is_org_owner && accessible.length > 1)) {
+          selectHotel('ALL');
+        } else {
+          let selected = accessible.find(h => h.id === storedHotelId || h.hotel_code === storedHotelId);
+          if (!selected && accessible.length > 0) {
+            selected = accessible[0];
+          }
+          if (selected) {
+            selectHotel(selected);
+          }
         }
       }
     } catch (err) {
@@ -46,7 +49,22 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const PORTFOLIO_HOTEL = {
+    id: 'ALL',
+    hotel_code: 'PORTFOLIO',
+    name: 'All Properties (Consolidated Overview)',
+    city: 'Multi-Location',
+    isPortfolio: true,
+  };
+
   const selectHotel = async (hotel) => {
+    if (hotel === 'ALL' || hotel?.id === 'ALL') {
+      setCurrentHotel(PORTFOLIO_HOTEL);
+      localStorage.setItem('hotel_saas_current_hotel_id', 'ALL');
+      setActiveModules([]);
+      return;
+    }
+
     setCurrentHotel(hotel);
     localStorage.setItem('hotel_saas_current_hotel_id', hotel.id);
 
@@ -68,7 +86,9 @@ export function AuthProvider({ children }) {
       setUser(res.user);
 
       const accessible = res.user.accessible_hotels || [];
-      if (accessible.length > 0) {
+      if (res.user.is_org_owner && accessible.length > 1) {
+        await selectHotel('ALL');
+      } else if (accessible.length > 0) {
         await selectHotel(accessible[0]);
       }
       return res;

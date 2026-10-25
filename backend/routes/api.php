@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Admin\SuperAdminModuleController;
 use App\Http\Controllers\Api\V1\Admin\SuperAdminOrganizationController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Hotel\HotelModuleController;
+use App\Http\Controllers\Api\V1\Hotel\HotelStaffController;
 use App\Http\Controllers\Api\V1\Modules\TestModuleController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +27,10 @@ Route::prefix('v1')->group(function () {
 
         // Hotel & Module Navigation
         Route::get('/hotels/{hotelId?}/modules', [HotelModuleController::class, 'activeModules'])->middleware('tenant');
+
+        // Staff & Module Access Management (Tier 2 Owner generates Tier 3 Staff logins)
+        Route::get('/hotels/{hotelId}/staff', [HotelStaffController::class, 'index']);
+        Route::post('/hotels/{hotelId}/staff', [HotelStaffController::class, 'store']);
 
         // Module-Protected Operational Routes (Enforced via 'tenant' and 'module:{code}')
         Route::middleware('tenant')->group(function () {

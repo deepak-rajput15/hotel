@@ -8,7 +8,7 @@ export async function apiRequest(endpoint, options = {}) {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...(currentHotelId ? { 'X-Hotel-ID': currentHotelId } : {}),
+    ...(currentHotelId && currentHotelId !== 'ALL' ? { 'X-Hotel-ID': currentHotelId } : {}),
     ...(options.headers || {}),
   };
 
@@ -64,4 +64,10 @@ export const hotelApi = {
   getActiveModules: (hotelId) => apiRequest(`/hotels/${hotelId}/modules`),
   testFrontOffice: () => apiRequest('/front-office/dashboard'),
   testRestaurant: () => apiRequest('/restaurant/orders'),
+  getStaff: (hotelId = 'ALL') => apiRequest(`/hotels/${hotelId}/staff`),
+  createStaff: (hotelId, data) =>
+    apiRequest(`/hotels/${hotelId}/staff`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
