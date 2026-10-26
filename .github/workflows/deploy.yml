@@ -60,30 +60,42 @@ jobs:
           name: frontend-dist
           path: dist
 
-      - name: Setup SSH Key
+      - name: Setup SSH Connection
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p ${{ secrets.SSH_PORT || 22 }} -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
       # ----------------------------------------------------------
       # Deploy Frontend -> sas.u2tech.in
       # ----------------------------------------------------------
-      - name: Deploy Frontend Files to sas.u2tech.in
+      - name: Deploy Frontend to sas.u2tech.in
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
         run: |
           echo "Deploying frontend build to /home/u2tech-sas/htdocs/sas.u2tech.in/..."
-          rsync -avz --delete -e "ssh -p ${{ secrets.SSH_PORT || 22 }}" \
+          rsync -avz --delete -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no" \
             dist/ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/u2tech-sas/htdocs/sas.u2tech.in/
+            $SSH_USER@$SSH_HOST:/home/u2tech-sas/htdocs/sas.u2tech.in/
 
-          ssh -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+          ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
             "chown -R u2tech-sas:u2tech-sas /home/u2tech-sas/htdocs/sas.u2tech.in"
 
       # ----------------------------------------------------------
       # Deploy Backend -> sasapi.u2tech.in
       # ----------------------------------------------------------
       - name: Deploy Backend Files to sasapi.u2tech.in
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
         run: |
           echo "Syncing Laravel Backend to /home/u2tech-sasapi/htdocs/sasapi.u2tech.in/..."
           rsync -avz --delete \
@@ -92,27 +104,36 @@ jobs:
             --exclude='vendor/' \
             --exclude='node_modules/' \
             --exclude='.git/' \
-            -e "ssh -p ${{ secrets.SSH_PORT || 22 }}" \
+            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no" \
             backend/ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/u2tech-sasapi/htdocs/sasapi.u2tech.in/
+            $SSH_USER@$SSH_HOST:/home/u2tech-sasapi/htdocs/sasapi.u2tech.in/
 
       # ----------------------------------------------------------
       # Run Laravel Post-Deployment Artisan & Composer Commands
       # ----------------------------------------------------------
       - name: Execute Remote Laravel Setup & Optimization
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
         run: |
-          ssh -p ${{ secrets.SSH_PORT || 22 }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -se' << 'EOF'
+          ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST 'bash -se' << 'EOF'
             set -e
+            export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
             BACKEND_DIR="/home/u2tech-sasapi/htdocs/sasapi.u2tech.in"
             cd "$BACKEND_DIR"
 
             echo "Ensuring required directories exist..."
             mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
 
-            # Check if .env exists, if not create from example
+            # Check if .env exists, if not create from production example
             if [ ! -f .env ]; then
               echo "Creating initial .env file..."
-              cp .env.example .env
+              if [ -f .env.production.example ]; then
+                cp .env.production.example .env
+              else
+                cp .env.example .env
+              fi
               php artisan key:generate --force
             fi
 
