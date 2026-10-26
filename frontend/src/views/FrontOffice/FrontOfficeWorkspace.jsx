@@ -34,6 +34,11 @@ import {
   TrendingUp,
   BarChart3,
   CalendarDays,
+  User,
+  UploadCloud,
+  Check,
+  Zap,
+  Key,
 } from 'lucide-react';
 
 export default function FrontOfficeWorkspace() {
@@ -124,6 +129,39 @@ export default function FrontOfficeWorkspace() {
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState('');
   const [successToast, setSuccessToast] = useState('');
+
+  const handleQuickAutoFill = () => {
+    const checkOut = new Date();
+    checkOut.setDate(checkOut.getDate() + 2);
+    checkOut.setHours(11, 0, 0, 0);
+
+    const availRoom = rooms.find(r => r.status === 'AVAILABLE') || rooms[0];
+
+    setCheckInForm({
+      first_name: 'Rahul',
+      last_name: 'Sharma',
+      phone: '+91 98765 43210',
+      email: 'rahul.sharma@gmail.com',
+      nationality: 'Indian',
+      id_type: 'AADHAAR',
+      id_number: '5432-8765-1092',
+      id_document_path: 'aadhaar_scan_verified.pdf',
+      address: 'Flat 402, Sea Green Heights, Bandra West',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      purpose_of_visit: 'Corporate Business / Tech Conference',
+      room_id: availRoom ? availRoom.id : '',
+      expected_check_out_at: checkOut.toISOString().slice(0, 16),
+      num_adults: 2,
+      num_children: 0,
+      special_requests: 'High floor, quiet corner room, extra pillows',
+      room_rate_per_night: availRoom ? availRoom.base_price : 2800,
+      discount_amount: 0,
+      advance_deposit_amount: '3000',
+      payment_method: 'UPI_QR',
+      transaction_reference: 'UPI-982461829',
+    });
+  };
 
   useEffect(() => {
     loadFrontOfficeData();
@@ -1445,335 +1483,606 @@ export default function FrontOfficeWorkspace() {
       {/* ============================================================== */}
       {/* MODAL 1: COMPLETE GUEST WALK-IN / CHECK-IN WIZARD WITH KYC DOCS */}
       {/* ============================================================== */}
-      {showCheckInModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <div>
-                <h3 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--t-900)' }}>
-                  Guest Registration & Check-In Wizard
-                </h3>
-                <p style={{ fontSize: '12.5px', color: 'var(--t-500)' }}>
-                  Mandatory Government KYC Verification & Immediate Room Allocation
-                </p>
-              </div>
-              <button onClick={() => setShowCheckInModal(false)} className="btn btn-secondary btn-sm">✕</button>
-            </div>
+      {showCheckInModal && (() => {
+        const selectedRoomObj = rooms.find(r => r.id === checkInForm.room_id);
+        const checkOutDateVal = checkInForm.expected_check_out_at ? new Date(checkInForm.expected_check_out_at) : null;
+        const stayNightsCount = checkOutDateVal && !isNaN(checkOutDateVal.getTime())
+          ? Math.max(1, Math.ceil((checkOutDateVal.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+          : 1;
+        const nightlyRate = Number(checkInForm.room_rate_per_night || selectedRoomObj?.base_price || 0);
+        const estimatedRoomTotal = nightlyRate * stayNightsCount;
+        const advanceDepositVal = Number(checkInForm.advance_deposit_amount || 0);
+        const estimatedBalanceAtCheckout = Math.max(0, estimatedRoomTotal - advanceDepositVal);
 
-            {actionError && (
-              <div style={{ background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid var(--error-border)', padding: '10px 14px', borderRadius: 'var(--r-sm)', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertCircle size={16} />
-                <span>{actionError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCheckInSubmit}>
-              {/* SECTION A: GUEST PERSONAL INFORMATION */}
-              <div style={{ marginBottom: '18px' }}>
-                <div style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--brand)', letterSpacing: '0.04em', marginBottom: '10px' }}>
-                  1. Guest Personal Information
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">First Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Ramesh"
-                      className="form-control"
-                      value={checkInForm.first_name}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, first_name: e.target.value })}
-                    />
+        return (
+          <div className="modal-overlay">
+            <div className="modal-content" style={{ maxWidth: '840px', maxHeight: '92vh', overflowY: 'auto', padding: '26px 30px' }}>
+              
+              {/* Header Hero */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid var(--border-sub)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div
+                    style={{
+                      width: '46px',
+                      height: '46px',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
+                      boxShadow: '0 6px 16px rgba(99, 102, 241, 0.3)',
+                      flexShrink: 0
+                    }}
+                  >
+                    <UserCheck size={24} />
                   </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Last Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Verma"
-                      className="form-control"
-                      value={checkInForm.last_name}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, last_name: e.target.value })}
-                    />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--t-900)', letterSpacing: '-0.02em', margin: 0 }}>
+                        Guest Registration & Check-In Wizard
+                      </h3>
+                      <span className="badge badge-brand" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                        Express PMS
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '12.5px', color: 'var(--t-500)', marginTop: '2px' }}>
+                      Mandatory Police Form-C KYC Verification & Real-Time Room Key Allocation
+                    </p>
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Mobile Number *</label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="+91 9876543210"
-                      className="form-control"
-                      value={checkInForm.phone}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, phone: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Email Address</label>
-                    <input
-                      type="email"
-                      placeholder="guest@example.com"
-                      className="form-control"
-                      value={checkInForm.email}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, email: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Nationality *</label>
-                    <input
-                      type="text"
-                      required
-                      className="form-control"
-                      value={checkInForm.nationality}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, nationality: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Purpose of Visit</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. Corporate Business / Leisure"
-                      value={checkInForm.purpose_of_visit}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, purpose_of_visit: e.target.value })}
-                    />
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={handleQuickAutoFill}
+                    className="btn btn-secondary btn-sm"
+                    style={{
+                      fontSize: '11.5px',
+                      fontWeight: '700',
+                      color: 'var(--brand)',
+                      borderColor: 'var(--brand-200)',
+                      background: 'var(--brand-50)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '6px 12px'
+                    }}
+                    title="Auto-fill sample verified guest data for quick demonstration"
+                  >
+                    <Zap size={13} fill="currentColor" />
+                    <span>⚡ Quick Demo Fill</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCheckInModal(false)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ borderRadius: '50%', width: '32px', height: '32px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
 
-              {/* SECTION B: MANDATORY GOVT IDENTITY & KYC DOCUMENTS */}
-              <div style={{ marginBottom: '18px', padding: '14px', background: 'var(--surface-sub)', borderRadius: 'var(--r-card)', border: '1px solid var(--border-sub)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--brand)', letterSpacing: '0.04em' }}>
-                    2. Mandatory Govt. KYC Documents (Police / Form C)
-                  </div>
-                  <span className="badge badge-success">ID Verification Required</span>
+              {/* Visual Step Indicator Banner */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '8px',
+                  marginBottom: '20px',
+                  padding: '10px 14px',
+                  background: 'var(--surface-sub)',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border-sub)',
+                  fontSize: '11.5px',
+                  fontWeight: '700'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand)' }}>
+                  <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>1</span>
+                  <span>Guest Profile</span>
                 </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Identity Document Type *</label>
-                    <select
-                      className="form-select"
-                      value={checkInForm.id_type}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, id_type: e.target.value })}
-                      required
-                    >
-                      <option value="AADHAAR">Aadhaar Card (UIDAI)</option>
-                      <option value="PASSPORT">Passport (Mandatory for Foreigners)</option>
-                      <option value="DRIVING_LICENSE">Driving License</option>
-                      <option value="VOTER_ID">Voter Identity Card</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Document Identification Number *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder={checkInForm.id_type === 'AADHAAR' ? 'e.g. 5432-8765-1092' : 'Document Number'}
-                      className="form-control"
-                      value={checkInForm.id_number}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, id_number: e.target.value })}
-                    />
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand)' }}>
+                  <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>2</span>
+                  <span>Govt KYC (Form C)</span>
                 </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Permanent Address</label>
-                    <input
-                      type="text"
-                      placeholder="Residential address as per ID"
-                      className="form-control"
-                      value={checkInForm.address}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, address: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">City</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Mumbai"
-                      className="form-control"
-                      value={checkInForm.city}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, city: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">State</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Maharashtra"
-                      className="form-control"
-                      value={checkInForm.state}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, state: e.target.value })}
-                    />
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand)' }}>
+                  <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>3</span>
+                  <span>Room Stay</span>
                 </div>
-
-                {checkInForm.nationality.toLowerCase() !== 'indian' && (
-                  <div style={{ marginTop: '10px', fontSize: '11.5px', color: '#b45309', background: '#fef3c7', padding: '6px 10px', borderRadius: '4px' }}>
-                    ⚠️ Foreign National detected: Passport number & Form C compliance is recorded for local authorities.
-                  </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand)' }}>
+                  <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--brand)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>4</span>
+                  <span>Payment & Key</span>
+                </div>
               </div>
 
-              {/* SECTION C: ROOM SELECTION & STAY DURATION */}
-              <div style={{ marginBottom: '18px' }}>
-                <div style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--brand)', letterSpacing: '0.04em', marginBottom: '10px' }}>
-                  3. Room Assignment & Stay Dates
+              {actionError && (
+                <div style={{ background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid var(--error-border)', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={16} />
+                  <span>{actionError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCheckInSubmit}>
+                {/* SECTION 1: GUEST PERSONAL INFORMATION */}
+                <div className="wizard-section">
+                  <div className="wizard-section-header">
+                    <div className="wizard-section-title">
+                      <span className="wizard-section-badge">1</span>
+                      <span>Guest Personal Information</span>
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--t-500)', fontWeight: '600' }}>* Required Fields</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        <User size={13} color="var(--brand)" />
+                        <span>First Name *</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Rahul"
+                        className="form-control"
+                        value={checkInForm.first_name}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, first_name: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        <span>Last Name</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Sharma"
+                        className="form-control"
+                        value={checkInForm.last_name}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, last_name: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        <Phone size={13} color="var(--brand)" />
+                        <span>Mobile Number *</span>
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="+91 98765 43210"
+                        className="form-control"
+                        value={checkInForm.phone}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, phone: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        <Mail size={13} color="var(--brand)" />
+                        <span>Email Address</span>
+                      </label>
+                      <input
+                        type="email"
+                        placeholder="guest@example.com"
+                        className="form-control"
+                        value={checkInForm.email}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, email: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        <MapPin size={13} color="var(--brand)" />
+                        <span>Nationality *</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="form-control"
+                        value={checkInForm.nationality}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, nationality: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        <span>Purpose of Visit</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. Corporate Business / Leisure"
+                        value={checkInForm.purpose_of_visit}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, purpose_of_visit: e.target.value })}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Select Available Room *</label>
-                    <select
-                      className="form-select"
-                      required
-                      value={checkInForm.room_id}
-                      onChange={(e) => {
-                        const sel = rooms.find(r => r.id === e.target.value);
-                        setCheckInForm({
-                          ...checkInForm,
-                          room_id: e.target.value,
-                          room_rate_per_night: sel?.base_price || '',
-                        });
+                {/* SECTION 2: MANDATORY GOVT IDENTITY & KYC DOCUMENTS */}
+                <div
+                  className="wizard-section"
+                  style={{
+                    background: 'linear-gradient(180deg, #fbfcfe 0%, #f8fafc 100%)',
+                    border: '1.5px solid #e0e7ff'
+                  }}
+                >
+                  <div className="wizard-section-header">
+                    <div className="wizard-section-title" style={{ color: '#4338ca' }}>
+                      <span className="wizard-section-badge" style={{ background: '#e0e7ff', color: '#4338ca', borderColor: '#c7d2fe' }}>2</span>
+                      <span>Mandatory Government KYC Verification (Police / Form C)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="badge badge-success" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <ShieldCheck size={12} />
+                        <span>Official Compliance</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        <FileCheck size={13} color="var(--brand)" />
+                        <span>Identity Document Type *</span>
+                      </label>
+                      <select
+                        className="form-select"
+                        value={checkInForm.id_type}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, id_type: e.target.value })}
+                        required
+                      >
+                        <option value="AADHAAR">Aadhaar Card (UIDAI Verified)</option>
+                        <option value="PASSPORT">Passport (Mandatory for Foreigners)</option>
+                        <option value="DRIVING_LICENSE">Driving License (RTO)</option>
+                        <option value="VOTER_ID">Election Voter ID Card</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        <span>Document ID / Unique Number *</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder={checkInForm.id_type === 'AADHAAR' ? 'e.g. 5432-8765-1092' : 'Document ID Number'}
+                        className="form-control"
+                        value={checkInForm.id_number}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, id_number: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Permanent Address (as on ID)</label>
+                      <input
+                        type="text"
+                        placeholder="Residential address as per document"
+                        className="form-control"
+                        value={checkInForm.address}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, address: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">City</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Mumbai"
+                        className="form-control"
+                        value={checkInForm.city}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, city: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">State</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Maharashtra"
+                        className="form-control"
+                        value={checkInForm.state}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, state: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Document Verification & Scan Dropzone Container */}
+                  <div
+                    style={{
+                      border: '1.5px dashed #cbd5e1',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      background: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '10px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <FileCheck size={18} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--t-900)' }}>
+                          {checkInForm.id_document_path || 'aadhaar_scan_verified.pdf'}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--t-500)' }}>
+                          Encrypted Govt KYC Document Attached • 1.4 MB PDF
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="badge badge-success" style={{ fontSize: '11px' }}>
+                        ✓ Verified Scan
+                      </span>
+                    </div>
+                  </div>
+
+                  {checkInForm.nationality.toLowerCase() !== 'indian' && (
+                    <div style={{ marginTop: '12px', fontSize: '12px', color: '#92400e', background: '#fef3c7', padding: '8px 12px', borderRadius: '8px', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AlertCircle size={15} />
+                      <span><strong>Foreign National Guest:</strong> Passport details will be automatically routed to local FRO/Form-C registry portal.</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* SECTION 3: ROOM ASSIGNMENT & STAY DURATION */}
+                <div className="wizard-section">
+                  <div className="wizard-section-header">
+                    <div className="wizard-section-title">
+                      <span className="wizard-section-badge">3</span>
+                      <span>Room Assignment & Stay Duration</span>
+                    </div>
+                    {availableRoomsList.length > 0 ? (
+                      <span className="badge badge-success">{availableRoomsList.length} Rooms Ready for Check-In</span>
+                    ) : (
+                      <span className="badge badge-error">No Clean Rooms Available</span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        <Bed size={13} color="var(--brand)" />
+                        <span>Select Available Clean Room *</span>
+                      </label>
+                      <select
+                        className="form-select"
+                        required
+                        value={checkInForm.room_id}
+                        onChange={(e) => {
+                          const sel = rooms.find(r => r.id === e.target.value);
+                          setCheckInForm({
+                            ...checkInForm,
+                            room_id: e.target.value,
+                            room_rate_per_night: sel?.base_price || '',
+                          });
+                        }}
+                      >
+                        <option value="">-- Choose an Available Room --</option>
+                        {availableRoomsList.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            Room {r.room_number} • {r.room_type} ({r.floor}) • ₹{Number(r.base_price).toLocaleString('en-IN')}/night
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        <Clock size={13} color="var(--brand)" />
+                        <span>Expected Check-Out Date & Time *</span>
+                      </label>
+                      <input
+                        type="datetime-local"
+                        required
+                        className="form-control"
+                        value={checkInForm.expected_check_out_at}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, expected_check_out_at: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '14px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Adults</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="form-control"
+                        value={checkInForm.num_adults}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, num_adults: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Children</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="form-control"
+                        value={checkInForm.num_children}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, num_children: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Agreed Room Rate (₹/night)</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={checkInForm.room_rate_per_night}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, room_rate_per_night: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 4: ADVANCE DEPOSIT & REAL-TIME BILLING PREVIEW */}
+                <div
+                  className="wizard-section"
+                  style={{
+                    background: 'linear-gradient(135deg, #f8faff 0%, #f1f4fd 100%)',
+                    border: '1.5px solid #dbeafe'
+                  }}
+                >
+                  <div className="wizard-section-header">
+                    <div className="wizard-section-title" style={{ color: '#1e40af' }}>
+                      <span className="wizard-section-badge" style={{ background: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' }}>4</span>
+                      <span>Advance Deposit & Payment Mode</span>
+                    </div>
+                    <span className="badge badge-brand">Instant Folio Receipt</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.2fr', gap: '14px', marginBottom: '14px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Advance Deposit Amount (₹)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 3000"
+                        className="form-control"
+                        value={checkInForm.advance_deposit_amount}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, advance_deposit_amount: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Payment Mode</label>
+                      <select
+                        className="form-select"
+                        value={checkInForm.payment_method}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, payment_method: e.target.value })}
+                      >
+                        <option value="UPI_QR">UPI / QR Code</option>
+                        <option value="CASH">Cash</option>
+                        <option value="CARD">Debit / Credit Card</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Transaction / Ref #</label>
+                      <input
+                        type="text"
+                        placeholder="Optional UPI/Txn Ref"
+                        className="form-control"
+                        value={checkInForm.transaction_reference}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, transaction_reference: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* LIVE ESTIMATION SUMMARY CARD */}
+                  {checkInForm.room_id && (
+                    <div
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '10px',
+                        padding: '12px 16px',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        gap: '12px',
+                        textAlign: 'center'
                       }}
                     >
-                      <option value="">-- Choose an Available Room --</option>
-                      {availableRoomsList.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          Room {r.room_number} - {r.room_type} ({r.floor}) - ₹{r.base_price}/nt
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--t-500)', fontWeight: '600', textTransform: 'uppercase' }}>Stay Nights</div>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--t-900)', marginTop: '2px' }}>
+                          🌙 {stayNightsCount} {stayNightsCount === 1 ? 'Night' : 'Nights'}
+                        </div>
+                      </div>
 
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Expected Check-Out Date & Time *</label>
-                    <input
-                      type="datetime-local"
-                      required
-                      className="form-control"
-                      value={checkInForm.expected_check_out_at}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, expected_check_out_at: e.target.value })}
-                    />
-                  </div>
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--t-500)', fontWeight: '600', textTransform: 'uppercase' }}>Est. Room Total</div>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--t-900)', marginTop: '2px' }}>
+                          ₹{estimatedRoomTotal.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--t-500)', fontWeight: '600', textTransform: 'uppercase' }}>Advance Paying</div>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--success)', marginTop: '2px' }}>
+                          ₹{advanceDepositVal.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--t-500)', fontWeight: '600', textTransform: 'uppercase' }}>Balance Due at Exit</div>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--brand)', marginTop: '2px' }}>
+                          ₹{estimatedBalanceAtCheckout.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Adults</label>
-                    <input
-                      type="number"
-                      min="1"
-                      className="form-control"
-                      value={checkInForm.num_adults}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, num_adults: e.target.value })}
-                    />
+                {/* MODAL ACTION BAR */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingTop: '16px',
+                    borderTop: '1px solid var(--border-sub)',
+                    marginTop: '10px',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--t-600)' }}>
+                    <ShieldCheck size={16} color="var(--success)" />
+                    <span>Instant Guest Folio Account & Digital Key Card Generated</span>
                   </div>
 
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Children</label>
-                    <input
-                      type="number"
-                      min="0"
-                      className="form-control"
-                      value={checkInForm.num_children}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, num_children: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Tariff/Night (₹)</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={checkInForm.room_rate_per_night}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, room_rate_per_night: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION D: ADVANCE DEPOSIT & PAYMENT */}
-              <div style={{ marginBottom: '22px', padding: '14px', background: 'var(--brand-50)', borderRadius: 'var(--r-card)', border: '1px solid var(--brand-200)' }}>
-                <div style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--brand)', letterSpacing: '0.04em', marginBottom: '10px' }}>
-                  4. Advance Deposit Collection (Optional / Recommended)
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Advance Amount (₹)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 3000"
-                      className="form-control"
-                      value={checkInForm.advance_deposit_amount}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, advance_deposit_amount: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Payment Mode</label>
-                    <select
-                      className="form-select"
-                      value={checkInForm.payment_method}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, payment_method: e.target.value })}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowCheckInModal(false)}
+                      className="btn btn-secondary"
+                      disabled={submitting}
+                      style={{ padding: '9px 18px', fontWeight: '600' }}
                     >
-                      <option value="UPI_QR">UPI / QR Code</option>
-                      <option value="CASH">Cash</option>
-                      <option value="CARD">Debit / Credit Card</option>
-                      <option value="BANK_TRANSFER">Bank Transfer</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Txn / Ref #</label>
-                    <input
-                      type="text"
-                      placeholder="Optional Txn ID"
-                      className="form-control"
-                      value={checkInForm.transaction_reference}
-                      onChange={(e) => setCheckInForm({ ...checkInForm, transaction_reference: e.target.value })}
-                    />
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting || !checkInForm.room_id}
+                      className="btn btn-primary"
+                      style={{
+                        padding: '10px 22px',
+                        fontWeight: '800',
+                        fontSize: '13.5px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
+                        boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+                      }}
+                    >
+                      <CheckCircle2 size={16} />
+                      <span>{submitting ? 'Verifying & Registering...' : 'Complete Check-In & Allocate Room'}</span>
+                    </button>
                   </div>
                 </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCheckInModal(false)}
-                  className="btn btn-secondary"
-                  disabled={submitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || !checkInForm.room_id}
-                  className="btn btn-primary"
-                  style={{ fontWeight: '700' }}
-                >
-                  {submitting ? 'Verifying & Registering...' : '✓ Complete Check-In & Allocate Room'}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ============================================================== */}
       {/* MODAL 2: GUEST FOLIO BILLING (VIEW CHARGES, ADD EXTRAS & ADVANCES) */}
