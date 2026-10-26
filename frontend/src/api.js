@@ -1,4 +1,4 @@
-const API_BASE = '/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 export async function apiRequest(endpoint, options = {}) {
   const token = localStorage.getItem('hotel_saas_token');

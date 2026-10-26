@@ -1,0 +1,10 @@
+.DS_Store
+Thumbs.db
+node_modules/
+vendor/
+.env
+.env.backup
+.env.production
+dist/
+dist-ssr/
+*.log
