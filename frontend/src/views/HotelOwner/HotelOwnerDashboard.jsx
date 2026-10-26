@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { hotelApi } from '../../api';
 import ConsolidatedPortfolioView from './ConsolidatedPortfolioView';
 import StaffManagementTab from './StaffManagementTab';
+import FrontOfficeWorkspace from '../FrontOffice/FrontOfficeWorkspace';
 import {
   Bed,
   ConciergeBell,
@@ -23,7 +24,7 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
   const [testingApi, setTestingApi] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'front_office' || activeTab === 'restaurant') {
+    if (activeTab === 'restaurant') {
       testModuleBackendAccess(activeTab);
     } else {
       setModuleApiStatus(null);
@@ -34,9 +35,7 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
     try {
       setTestingApi(true);
       let res;
-      if (tab === 'front_office') {
-        res = await hotelApi.testFrontOffice();
-      } else if (tab === 'restaurant') {
+      if (tab === 'restaurant') {
         res = await hotelApi.testRestaurant();
       }
       setModuleApiStatus({ success: true, data: res });
@@ -67,6 +66,33 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
           hotels={user?.accessible_hotels || []}
           onSelectSpecificHotel={(hotel) => selectHotel(hotel)}
         />
+      </div>
+    );
+  }
+
+  // 3. Operational Front Office Route
+  if (activeTab === 'front_office') {
+    if (!isModuleActive('front_office')) {
+      return (
+        <div className="page-body">
+          <div className="card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--error-bg)', color: 'var(--error)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Lock size={28} />
+            </div>
+            <h3 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--t-900)' }}>
+              Front Office Module Locked
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--t-500)', maxWidth: '420px', margin: '6px auto 16px' }}>
+              Property <strong>{currentHotel?.name} ({currentHotel?.hotel_code})</strong> does not have an active Front Office subscription. Subscription must be toggled by the Platform Super Admin.
+            </p>
+            <span className="badge badge-inactive">Status: Subscription Inactive</span>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="page-body">
+        <FrontOfficeWorkspace />
       </div>
     );
   }

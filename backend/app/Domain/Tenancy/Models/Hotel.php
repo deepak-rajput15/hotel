@@ -77,6 +77,21 @@ class Hotel extends Model
         return $this->hasMany(UserHotelAccess::class);
     }
 
+    public function rooms(): HasMany
+    {
+        return $this->hasMany(\App\Domain\FrontOffice\Models\Room::class);
+    }
+
+    public function guests(): HasMany
+    {
+        return $this->hasMany(\App\Domain\FrontOffice\Models\Guest::class);
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(\App\Domain\FrontOffice\Models\Booking::class);
+    }
+
     /**
      * Check if a module is currently active and subscribed for this hotel.
      */

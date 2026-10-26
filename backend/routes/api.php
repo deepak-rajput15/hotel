@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Admin\SuperAdminHotelController;
 use App\Http\Controllers\Api\V1\Admin\SuperAdminModuleController;
 use App\Http\Controllers\Api\V1\Admin\SuperAdminOrganizationController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\FrontOffice\FrontOfficeController;
 use App\Http\Controllers\Api\V1\Hotel\HotelModuleController;
 use App\Http\Controllers\Api\V1\Hotel\HotelStaffController;
 use App\Http\Controllers\Api\V1\Modules\TestModuleController;
@@ -34,9 +35,18 @@ Route::prefix('v1')->group(function () {
 
         // Module-Protected Operational Routes (Enforced via 'tenant' and 'module:{code}')
         Route::middleware('tenant')->group(function () {
-            // Front Office routes
+            // Front Office routes (Guest Check-in, KYC Documents, Folio Billing, Room Rack)
             Route::prefix('front-office')->middleware('module:front_office')->group(function () {
-                Route::get('/dashboard', [TestModuleController::class, 'frontOfficeDashboard']);
+                Route::get('/dashboard', [FrontOfficeController::class, 'overview']);
+                Route::get('/overview', [FrontOfficeController::class, 'overview']);
+                Route::get('/rooms', [FrontOfficeController::class, 'rooms']);
+                Route::put('/rooms/{roomId}/status', [FrontOfficeController::class, 'updateRoomStatus']);
+                Route::get('/bookings', [FrontOfficeController::class, 'bookings']);
+                Route::get('/bookings/{id}', [FrontOfficeController::class, 'bookingDetail']);
+                Route::post('/check-in', [FrontOfficeController::class, 'checkIn']);
+                Route::post('/bookings/{id}/folio-items', [FrontOfficeController::class, 'addFolioCharge']);
+                Route::post('/bookings/{id}/payments', [FrontOfficeController::class, 'recordPayment']);
+                Route::post('/bookings/{id}/check-out', [FrontOfficeController::class, 'checkOut']);
             });
 
             // Restaurant routes

@@ -10,6 +10,28 @@ function AppContent() {
   const { user, loading, currentHotel } = useAuth();
   const [currentTab, setCurrentTab] = useState('overview');
 
+  React.useEffect(() => {
+    if (user && !user.is_platform_admin) {
+      if (user.assigned_role) {
+        if (user.assigned_role.slug === 'front-desk') {
+          setCurrentTab('front_office');
+        } else if (user.assigned_role.slug === 'head-chef') {
+          setCurrentTab('kitchen');
+        } else if (user.assigned_role.slug === 'restaurant-cashier') {
+          setCurrentTab('restaurant');
+        } else if (user.assigned_role.slug === 'storekeeper') {
+          setCurrentTab('store');
+        }
+      } else if (currentHotel?.id === 'ALL') {
+        setCurrentTab('portfolio_overview');
+      } else {
+        setCurrentTab('dashboard');
+      }
+    } else if (user?.is_platform_admin) {
+      setCurrentTab('overview');
+    }
+  }, [user?.id, currentHotel?.id]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-app)' }}>

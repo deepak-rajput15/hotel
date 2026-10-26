@@ -71,3 +71,35 @@ export const hotelApi = {
       body: JSON.stringify(data),
     }),
 };
+
+export const frontOfficeApi = {
+  getOverview: () => apiRequest('/front-office/overview'),
+  getRooms: () => apiRequest('/front-office/rooms'),
+  updateRoomStatus: (roomId, status) =>
+    apiRequest(`/front-office/rooms/${roomId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  getBookings: (status = 'ALL') => apiRequest(`/front-office/bookings?status=${status}`),
+  getBookingDetail: (id) => apiRequest(`/front-office/bookings/${id}`),
+  checkIn: (data) =>
+    apiRequest('/front-office/check-in', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  addFolioCharge: (bookingId, data) =>
+    apiRequest(`/front-office/bookings/${bookingId}/folio-items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  recordPayment: (bookingId, data) =>
+    apiRequest(`/front-office/bookings/${bookingId}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  checkOut: (bookingId, data = {}) =>
+    apiRequest(`/front-office/bookings/${bookingId}/check-out`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
