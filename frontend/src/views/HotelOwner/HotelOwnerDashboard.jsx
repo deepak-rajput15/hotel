@@ -51,14 +51,39 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
   };
 
   const isModuleActive = (code) => activeModules.includes(code);
+  const isStaff = !!user?.assigned_role && !user?.is_org_owner;
+
+  // If a staff user somehow lands on the owner dashboard view, render their operational module
+  if (isStaff && activeTab === 'dashboard') {
+    const roleAllowed = {
+      'head-chef': 'kitchen',
+      'front-desk': 'front_office',
+      'restaurant-cashier': 'restaurant',
+      'storekeeper': 'store',
+    };
+    const defaultMod = roleAllowed[user.assigned_role.slug] || 'front_office';
+    if (defaultMod === 'front_office') {
+      return (
+        <div className="page-body">
+          <FrontOfficeWorkspace />
+        </div>
+      );
+    }
+  }
 
   // 1. Staff Management Route (Tier 2 Owner generates Tier 3 credentials)
   if (activeTab === 'staff') {
+    if (isStaff) {
+      return null;
+    }
     return <StaffManagementTab activeHotelId={currentHotel?.id} />;
   }
 
-  // 2. Multi-Hotel Consolidated Portfolio Route
+  // 2. Multi-Hotel Consolidated Portfolio Route (Owner only)
   if (currentHotel?.id === 'ALL' || activeTab === 'portfolio_overview' || activeTab === 'properties') {
+    if (isStaff) {
+      return null;
+    }
     return (
       <div className="page-body">
         <ConsolidatedPortfolioView
@@ -127,18 +152,21 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
           </p>
         </div>
 
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '11px', color: 'var(--t-500)', textTransform: 'uppercase', fontWeight: '700', marginBottom: '6px' }}>
-            Subscribed Operational Modules
+        {/* Subscribed modules: Owner view only */}
+        {!isStaff && (
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '11px', color: 'var(--t-500)', textTransform: 'uppercase', fontWeight: '700', marginBottom: '6px' }}>
+              Subscribed Operational Modules
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'flex-end' }}>
+              {activeModules.map((modCode) => (
+                <span key={modCode} className="badge badge-success" style={{ fontSize: '11px', padding: '3px 8px' }}>
+                  <CheckCircle2 size={12} /> {modCode.replace('_', ' ').toUpperCase()}
+                </span>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'flex-end' }}>
-            {activeModules.map((modCode) => (
-              <span key={modCode} className="badge badge-success" style={{ fontSize: '11px', padding: '3px 8px' }}>
-                <CheckCircle2 size={12} /> {modCode.replace('_', ' ').toUpperCase()}
-              </span>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* View: Property Overview */}
@@ -146,13 +174,15 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
         <div>
           {/* Operational Metrics */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-            <MetricCard
-              label="Active Subscriptions"
-              value={`${activeModules.length} / 6`}
-              subtext="Modules Enabled by SaaS Admin"
-              icon={Sparkles}
-              color="var(--brand)"
-            />
+            {!isStaff && (
+              <MetricCard
+                label="Active Subscriptions"
+                value={`${activeModules.length} / 6`}
+                subtext="Modules Enabled by SaaS Admin"
+                icon={Sparkles}
+                color="var(--brand)"
+              />
+            )}
             <MetricCard
               label="Room Rack Capacity"
               value="48 Rooms"
@@ -176,60 +206,62 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
             />
           </div>
 
-          {/* Module Entitlement Status Grid */}
-          <div className="card">
-            <h3 style={{ fontSize: '16.5px', fontWeight: '700', color: 'var(--t-900)', marginBottom: '4px' }}>
-              Your Hotel's Module Entitlements
-            </h3>
-            <p style={{ fontSize: '13px', color: 'var(--t-600)', marginBottom: '18px' }}>
-              Only modules enabled by the platform company for <strong>{currentHotel?.name}</strong> can be accessed. Access is strictly verified on every backend API request.
-            </p>
+          {/* Module Entitlement Status Grid (Hotel Owner Admin Only) */}
+          {!isStaff && (
+            <div className="card">
+              <h3 style={{ fontSize: '16.5px', fontWeight: '700', color: 'var(--t-900)', marginBottom: '4px' }}>
+                Your Hotel's Module Entitlements
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--t-600)', marginBottom: '18px' }}>
+                Only modules enabled by the platform company for <strong>{currentHotel?.name}</strong> can be accessed. Access is strictly verified on every backend API request.
+              </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-              <ModuleStatusCard
-                code="front_office"
-                title="Front Office"
-                icon={ConciergeBell}
-                description="Guest reservations, room assignment, walk-ins, and guest ledger."
-                active={isModuleActive('front_office')}
-              />
-              <ModuleStatusCard
-                code="rooms"
-                title="Rooms & Rack"
-                icon={Bed}
-                description="Visual room rack, housekeeping status, room tariffs, and floor maps."
-                active={isModuleActive('rooms')}
-              />
-              <ModuleStatusCard
-                code="restaurant"
-                title="Restaurant & POS"
-                icon={Utensils}
-                description="Dine-in table orders, POS billing, food menu, and takeaway invoicing."
-                active={isModuleActive('restaurant')}
-              />
-              <ModuleStatusCard
-                code="kitchen"
-                title="Kitchen (KOT)"
-                icon={ChefHat}
-                description="Realtime Kitchen Order Tickets display, chef queues, and food preparation."
-                active={isModuleActive('kitchen')}
-              />
-              <ModuleStatusCard
-                code="store"
-                title="Store / Inventory"
-                icon={Boxes}
-                description="Stock tracking, item requisitions, low stock alerts, and physical audits."
-                active={isModuleActive('store')}
-              />
-              <ModuleStatusCard
-                code="purchase"
-                title="Purchase & Orders"
-                icon={ShoppingCart}
-                description="Vendor management, Purchase Orders (PO), and Goods Receipt Notes (GRN)."
-                active={isModuleActive('purchase')}
-              />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+                <ModuleStatusCard
+                  code="front_office"
+                  title="Front Office"
+                  icon={ConciergeBell}
+                  description="Guest reservations, room assignment, walk-ins, and guest ledger."
+                  active={isModuleActive('front_office')}
+                />
+                <ModuleStatusCard
+                  code="rooms"
+                  title="Rooms & Rack"
+                  icon={Bed}
+                  description="Visual room rack, housekeeping status, room tariffs, and floor maps."
+                  active={isModuleActive('rooms')}
+                />
+                <ModuleStatusCard
+                  code="restaurant"
+                  title="Restaurant & POS"
+                  icon={Utensils}
+                  description="Dine-in table orders, POS billing, food menu, and takeaway invoicing."
+                  active={isModuleActive('restaurant')}
+                />
+                <ModuleStatusCard
+                  code="kitchen"
+                  title="Kitchen (KOT)"
+                  icon={ChefHat}
+                  description="Realtime Kitchen Order Tickets display, chef queues, and food preparation."
+                  active={isModuleActive('kitchen')}
+                />
+                <ModuleStatusCard
+                  code="store"
+                  title="Store / Inventory"
+                  icon={Boxes}
+                  description="Stock tracking, item requisitions, low stock alerts, and physical audits."
+                  active={isModuleActive('store')}
+                />
+                <ModuleStatusCard
+                  code="purchase"
+                  title="Purchase & Orders"
+                  icon={ShoppingCart}
+                  description="Vendor management, Purchase Orders (PO), and Goods Receipt Notes (GRN)."
+                  active={isModuleActive('purchase')}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 

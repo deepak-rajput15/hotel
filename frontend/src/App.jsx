@@ -47,7 +47,21 @@ function AppContent() {
     return <Login />;
   }
 
-  const isSuperAdmin = user.is_platform_admin;
+  const isSuperAdmin = user?.is_platform_admin;
+  const isStaff = !!user?.assigned_role && !user?.is_org_owner;
+
+  // Route protection: Staff should never access owner tabs
+  React.useEffect(() => {
+    if (isStaff && ['dashboard', 'portfolio_overview', 'staff', 'overview'].includes(currentTab)) {
+      const roleAllowed = {
+        'head-chef': 'kitchen',
+        'front-desk': 'front_office',
+        'restaurant-cashier': 'restaurant',
+        'storekeeper': 'store',
+      };
+      setCurrentTab(roleAllowed[user.assigned_role.slug] || 'front_office');
+    }
+  }, [isStaff, currentTab, user?.assigned_role]);
 
   const getPageTitle = () => {
     if (isSuperAdmin) {
@@ -58,6 +72,16 @@ function AppContent() {
         case 'subscriptions': return 'Module Subscriptions & Entitlement Control';
         default: return 'Platform Administration';
       }
+    } else if (isStaff) {
+      switch (currentTab) {
+        case 'front_office': return 'Front Office Operations Desk';
+        case 'rooms': return 'Rooms Management & Rack Grid';
+        case 'restaurant': return 'Restaurant & Dining POS';
+        case 'kitchen': return 'Kitchen Display System (KOT)';
+        case 'store': return 'Store & Inventory Management';
+        case 'purchase': return 'Purchase Orders & Vendors';
+        default: return user.assigned_role.name;
+      }
     } else {
       if (currentHotel?.id === 'ALL') {
         switch (currentTab) {
@@ -67,7 +91,7 @@ function AppContent() {
         }
       }
       switch (currentTab) {
-        case 'dashboard': return `${currentHotel?.name || 'Hotel'} Dashboard`;
+        case 'dashboard': return `${currentHotel?.name || 'Hotel'} Executive Dashboard`;
         case 'staff': return `${currentHotel?.name || 'Hotel'} &bull; Staff Management`;
         case 'front_office': return 'Front Office Operations';
         case 'rooms': return 'Rooms Management & Rack Grid';
@@ -83,11 +107,13 @@ function AppContent() {
   const getPageSubtitle = () => {
     if (isSuperAdmin) {
       return 'Manage hotel owner accounts, provision properties, and toggle modular subscription access.';
+    } else if (isStaff) {
+      return `Operational Desk &bull; Property: ${currentHotel?.name || 'Hotel'} (${currentHotel?.hotel_code || 'HTL-1001'})`;
     } else {
       if (currentHotel?.id === 'ALL') {
         return `Consolidated enterprise view aggregated across all ${user?.accessible_hotels?.length || 0} properties`;
       }
-      return `Operational tenant console for property code: ${currentHotel?.hotel_code || 'HTL-1001'} (${currentHotel?.city || 'India'})`;
+      return `Property Console &bull; ${currentHotel?.name || 'Hotel'} (${currentHotel?.hotel_code || 'HTL-1001'})`;
     }
   };
 
