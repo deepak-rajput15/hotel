@@ -77,7 +77,7 @@ jobs:
           ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       # ----------------------------------------------------------
-      # Deploy Frontend -> sas.u2tech.in
+      # Deploy Frontend -> sas.u2tech.in/public
       # ----------------------------------------------------------
       - name: Deploy Frontend to sas.u2tech.in
         env:
@@ -86,12 +86,12 @@ jobs:
           SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
           SSH_PASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          echo "Deploying frontend build to /home/u2tech-sas/htdocs/sas.u2tech.in/..."
+          echo "Deploying frontend build to /home/u2tech-sas/htdocs/sas.u2tech.in/public/..."
           if [ -n "$SSH_PASS" ]; then
             SSHPASS="$SSH_PASS" rsync -avz --delete \
               -e "sshpass -e ssh -p $SSH_PORT -o StrictHostKeyChecking=no" \
               dist/ \
-              $SSH_USER@$SSH_HOST:/home/u2tech-sas/htdocs/sas.u2tech.in/
+              $SSH_USER@$SSH_HOST:/home/u2tech-sas/htdocs/sas.u2tech.in/public/
 
             SSHPASS="$SSH_PASS" sshpass -e ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
               "chown -R u2tech-sas:u2tech-sas /home/u2tech-sas/htdocs/sas.u2tech.in"
@@ -99,7 +99,7 @@ jobs:
             rsync -avz --delete \
               -e "ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=no" \
               dist/ \
-              $SSH_USER@$SSH_HOST:/home/u2tech-sas/htdocs/sas.u2tech.in/
+              $SSH_USER@$SSH_HOST:/home/u2tech-sas/htdocs/sas.u2tech.in/public/
 
             ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
               "chown -R u2tech-sas:u2tech-sas /home/u2tech-sas/htdocs/sas.u2tech.in"
@@ -162,19 +162,8 @@ jobs:
             echo "Ensuring required directories exist..."
             mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
 
-            # Check if .env exists, if not create from production example
-            if [ ! -f .env ]; then
-              echo "Creating initial .env file..."
-              if [ -f .env.production.example ]; then
-                cp .env.production.example .env
-              else
-                cp .env.example .env
-              fi
-              php artisan key:generate --force
-            fi
-
             echo "Installing composer production dependencies..."
-            composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+            COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
             echo "Running database migrations..."
             php artisan migrate --force
