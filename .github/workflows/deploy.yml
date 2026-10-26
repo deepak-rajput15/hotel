@@ -60,6 +60,9 @@ jobs:
           name: frontend-dist
           path: dist
 
+      - name: Install Deploy Utilities
+        run: sudo apt-get update -y && sudo apt-get install -y rsync sshpass
+
       - name: Setup SSH Connection
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
@@ -67,9 +70,11 @@ jobs:
           SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          if [ -n "$SSH_PRIVATE_KEY" ]; then
+            printf "%s\n" "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+          fi
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       # ----------------------------------------------------------
       # Deploy Frontend -> sas.u2tech.in
@@ -79,14 +84,26 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          SSH_PASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           echo "Deploying frontend build to /home/u2tech-sas/htdocs/sas.u2tech.in/..."
-          rsync -avz --delete -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no" \
-            dist/ \
-            $SSH_USER@$SSH_HOST:/home/u2tech-sas/htdocs/sas.u2tech.in/
+          if [ -n "$SSH_PASS" ]; then
+            SSHPASS="$SSH_PASS" rsync -avz --delete \
+              -e "sshpass -e ssh -p $SSH_PORT -o StrictHostKeyChecking=no" \
+              dist/ \
+              $SSH_USER@$SSH_HOST:/home/u2tech-sas/htdocs/sas.u2tech.in/
 
-          ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
-            "chown -R u2tech-sas:u2tech-sas /home/u2tech-sas/htdocs/sas.u2tech.in"
+            SSHPASS="$SSH_PASS" sshpass -e ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+              "chown -R u2tech-sas:u2tech-sas /home/u2tech-sas/htdocs/sas.u2tech.in"
+          else
+            rsync -avz --delete \
+              -e "ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=no" \
+              dist/ \
+              $SSH_USER@$SSH_HOST:/home/u2tech-sas/htdocs/sas.u2tech.in/
+
+            ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+              "chown -R u2tech-sas:u2tech-sas /home/u2tech-sas/htdocs/sas.u2tech.in"
+          fi
 
       # ----------------------------------------------------------
       # Deploy Backend -> sasapi.u2tech.in
@@ -96,17 +113,30 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          SSH_PASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           echo "Syncing Laravel Backend to /home/u2tech-sasapi/htdocs/sasapi.u2tech.in/..."
-          rsync -avz --delete \
-            --exclude='.env' \
-            --exclude='storage/' \
-            --exclude='vendor/' \
-            --exclude='node_modules/' \
-            --exclude='.git/' \
-            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no" \
-            backend/ \
-            $SSH_USER@$SSH_HOST:/home/u2tech-sasapi/htdocs/sasapi.u2tech.in/
+          if [ -n "$SSH_PASS" ]; then
+            SSHPASS="$SSH_PASS" rsync -avz --delete \
+              --exclude='.env' \
+              --exclude='storage/' \
+              --exclude='vendor/' \
+              --exclude='node_modules/' \
+              --exclude='.git/' \
+              -e "sshpass -e ssh -p $SSH_PORT -o StrictHostKeyChecking=no" \
+              backend/ \
+              $SSH_USER@$SSH_HOST:/home/u2tech-sasapi/htdocs/sasapi.u2tech.in/
+          else
+            rsync -avz --delete \
+              --exclude='.env' \
+              --exclude='storage/' \
+              --exclude='vendor/' \
+              --exclude='node_modules/' \
+              --exclude='.git/' \
+              -e "ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=no" \
+              backend/ \
+              $SSH_USER@$SSH_HOST:/home/u2tech-sasapi/htdocs/sasapi.u2tech.in/
+          fi
 
       # ----------------------------------------------------------
       # Run Laravel Post-Deployment Artisan & Composer Commands
@@ -116,8 +146,14 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          SSH_PASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST 'bash -se' << 'EOF'
+          SSH_CMD="ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST"
+          if [ -n "$SSH_PASS" ]; then
+            SSH_CMD="sshpass -p '$SSH_PASS' ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST"
+          fi
+
+          eval $SSH_CMD 'bash -se' << 'EOF'
             set -e
             export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
             BACKEND_DIR="/home/u2tech-sasapi/htdocs/sasapi.u2tech.in"
