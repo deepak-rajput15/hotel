@@ -148,14 +148,32 @@ class FrontOfficeController extends Controller
     {
         $hotel = $this->getHotel($request);
 
-        $monthStr = $request->query('month', Carbon::now()->format('Y-m')); // e.g. "2026-10"
-        try {
-            $monthStart = Carbon::createFromFormat('Y-m', $monthStr)->startOfMonth();
-        } catch (\Exception $e) {
-            $monthStart = Carbon::now()->startOfMonth();
+        $daysCount = (int) $request->query('days', 30);
+        if ($daysCount <= 0 || $daysCount > 90) {
+            $daysCount = 30;
         }
-        $monthEnd = $monthStart->copy()->endOfMonth();
-        $daysInMonth = $monthStart->daysInMonth;
+
+        if ($request->filled('start_date')) {
+            try {
+                $rangeStart = Carbon::parse($request->query('start_date'))->startOfDay();
+            } catch (\Exception $e) {
+                $rangeStart = Carbon::today()->startOfDay();
+            }
+        } elseif ($request->filled('month')) {
+            try {
+                $rangeStart = Carbon::createFromFormat('Y-m', $request->query('month'))->startOfMonth();
+                if (!$request->has('days')) {
+                    $daysCount = $rangeStart->daysInMonth;
+                }
+            } catch (\Exception $e) {
+                $rangeStart = Carbon::today()->startOfDay();
+            }
+        } else {
+            // Default: Start from TODAY for upcoming 30 days forward horizon
+            $rangeStart = Carbon::today()->startOfDay();
+        }
+
+        $rangeEnd = $rangeStart->copy()->addDays($daysCount - 1)->endOfDay();
 
         $roomId = $request->query('room_id');
 
@@ -165,24 +183,27 @@ class FrontOfficeController extends Controller
         }
         $rooms = $roomsQuery->get();
 
-        // Fetch bookings overlapping this month
+        // Fetch bookings overlapping this period
         $bookings = $hotel->bookings()
             ->with(['guest', 'room'])
             ->whereIn('status', ['CHECKED_IN', 'RESERVED', 'CHECKED_OUT'])
-            ->where(function ($q) use ($monthStart, $monthEnd) {
-                $q->where('check_in_at', '<=', $monthEnd)
-                  ->where('expected_check_out_at', '>=', $monthStart);
+            ->where(function ($q) use ($rangeStart, $rangeEnd) {
+                $q->where('check_in_at', '<=', $rangeEnd)
+                  ->where('expected_check_out_at', '>=', $rangeStart);
             })
             ->get();
 
-        // Build list of calendar days in this month
+        // Build list of calendar days starting from $rangeStart
         $calendarDays = [];
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $date = $monthStart->copy()->day($day);
+        for ($i = 0; $i < $daysCount; $i++) {
+            $date = $rangeStart->copy()->addDays($i);
             $calendarDays[] = [
-                'day' => $day,
+                'day' => (int) $date->format('j'),
                 'date' => $date->format('Y-m-d'),
                 'day_name' => $date->format('D'), // Mon, Tue...
+                'month_name' => $date->format('F'),
+                'month_short' => $date->format('M'),
+                'formatted_date' => $date->format('d M'),
                 'is_weekend' => $date->isWeekend(),
                 'is_today' => $date->isToday(),
             ];
@@ -232,6 +253,8 @@ class FrontOfficeController extends Controller
                     'day' => $calDay['day'],
                     'date' => $calDay['date'],
                     'day_name' => $calDay['day_name'],
+                    'month_short' => $calDay['month_short'],
+                    'formatted_date' => $calDay['formatted_date'],
                     'is_today' => $calDay['is_today'],
                     'status' => $status,
                     'booking' => $bookingInfo,
@@ -280,6 +303,8 @@ class FrontOfficeController extends Controller
                 'date' => $calDay['date'],
                 'day' => $calDay['day'],
                 'day_name' => $calDay['day_name'],
+                'month_short' => $calDay['month_short'],
+                'formatted_date' => $calDay['formatted_date'],
                 'is_today' => $calDay['is_today'],
                 'total_rooms' => $totalRoomsCount,
                 'booked_rooms' => $bookedOnDay,
@@ -288,13 +313,22 @@ class FrontOfficeController extends Controller
             ];
         }
 
+        $rangeLabel = $rangeStart->format('d M Y') . ' — ' . $rangeEnd->format('d M Y');
+
         return response()->json([
             'success' => true,
-            'month' => $monthStart->format('Y-m'),
-            'month_label' => $monthStart->format('F Y'),
-            'prev_month' => $monthStart->copy()->subMonth()->format('Y-m'),
-            'next_month' => $monthStart->copy()->addMonth()->format('Y-m'),
-            'days_in_month' => $daysInMonth,
+            'start_date' => $rangeStart->format('Y-m-d'),
+            'end_date' => $rangeEnd->format('Y-m-d'),
+            'range_label' => $rangeLabel,
+            'days_count' => $daysCount,
+            'prev_start_date' => $rangeStart->copy()->subDays($daysCount)->format('Y-m-d'),
+            'next_start_date' => $rangeStart->copy()->addDays($daysCount)->format('Y-m-d'),
+            'today_start_date' => Carbon::today()->format('Y-m-d'),
+            'month' => $rangeStart->format('Y-m'),
+            'month_label' => $rangeLabel,
+            'prev_month' => $rangeStart->copy()->subMonth()->format('Y-m'),
+            'next_month' => $rangeStart->copy()->addMonth()->format('Y-m'),
+            'days_in_month' => $daysCount,
             'days' => $calendarDays,
             'rooms' => $roomsCalendar,
             'daily_aggregates' => $dailyAggregates,

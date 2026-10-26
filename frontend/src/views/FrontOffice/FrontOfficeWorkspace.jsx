@@ -46,18 +46,19 @@ export default function FrontOfficeWorkspace() {
   const [bookings, setBookings] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1-Month Calendar & Availability Chart State
+  // 1-Month Forward Calendar & Availability Chart State (Starting from Today)
   const [calendarData, setCalendarData] = useState(null);
   const [calendarLoading, setCalendarLoading] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+  const [selectedStartDate, setSelectedStartDate] = useState(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
+  const [calendarDaysCount, setCalendarDaysCount] = useState(30);
   const [calendarRoomTypeFilter, setCalendarRoomTypeFilter] = useState('ALL');
   const [selectedRoomForModal, setSelectedRoomForModal] = useState(null);
-  const [roomModalMonth, setRoomModalMonth] = useState(() => {
+  const [roomModalStartDate, setRoomModalStartDate] = useState(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   const [roomModalCalendar, setRoomModalCalendar] = useState(null);
   const [roomModalLoading, setRoomModalLoading] = useState(false);
@@ -147,13 +148,14 @@ export default function FrontOfficeWorkspace() {
     }
   };
 
-  const loadCalendarData = async (monthToLoad = selectedMonth) => {
+  const loadCalendarData = async (startDateToLoad = selectedStartDate, days = calendarDaysCount) => {
     try {
       setCalendarLoading(true);
-      const res = await frontOfficeApi.getCalendar({ month: monthToLoad });
+      const res = await frontOfficeApi.getCalendar({ start_date: startDateToLoad, days });
       if (res.success) {
         setCalendarData(res);
-        setSelectedMonth(res.month);
+        if (res.start_date) setSelectedStartDate(res.start_date);
+        if (res.days_count) setCalendarDaysCount(res.days_count);
       }
     } catch (err) {
       console.error('Failed to load calendar data:', err);
@@ -162,14 +164,14 @@ export default function FrontOfficeWorkspace() {
     }
   };
 
-  const loadRoomModalCalendar = async (roomId, monthToLoad = roomModalMonth) => {
+  const loadRoomModalCalendar = async (roomId, startDateToLoad = roomModalStartDate, days = 30) => {
     if (!roomId) return;
     try {
       setRoomModalLoading(true);
-      const res = await frontOfficeApi.getCalendar({ room_id: roomId, month: monthToLoad });
+      const res = await frontOfficeApi.getCalendar({ room_id: roomId, start_date: startDateToLoad, days });
       if (res.success) {
         setRoomModalCalendar(res);
-        setRoomModalMonth(res.month);
+        if (res.start_date) setRoomModalStartDate(res.start_date);
       }
     } catch (err) {
       console.error('Failed to load single room calendar:', err);
@@ -180,15 +182,15 @@ export default function FrontOfficeWorkspace() {
 
   useEffect(() => {
     if (activeSubTab === 'calendar') {
-      loadCalendarData(selectedMonth);
+      loadCalendarData(selectedStartDate, calendarDaysCount);
     }
-  }, [activeSubTab, selectedMonth]);
+  }, [activeSubTab, selectedStartDate, calendarDaysCount]);
 
   useEffect(() => {
     if (selectedRoomForModal) {
-      loadRoomModalCalendar(selectedRoomForModal.id, roomModalMonth);
+      loadRoomModalCalendar(selectedRoomForModal.id, roomModalStartDate);
     }
-  }, [selectedRoomForModal, roomModalMonth]);
+  }, [selectedRoomForModal, roomModalStartDate]);
 
   const handleRoomStatusUpdate = async (roomId, newStatus) => {
     try {
@@ -619,7 +621,7 @@ export default function FrontOfficeWorkspace() {
         <button
           onClick={() => {
             setActiveSubTab('calendar');
-            loadCalendarData(selectedMonth);
+            loadCalendarData(selectedStartDate, calendarDaysCount);
           }}
           className={`tab-btn ${activeSubTab === 'calendar' ? 'tab-btn-active' : ''}`}
           style={{
@@ -639,7 +641,7 @@ export default function FrontOfficeWorkspace() {
           }}
         >
           <Calendar size={16} />
-          <span>1-Month Room Calendar (Tape Chart)</span>
+          <span>Next 1-Month Room Calendar (Tape Chart)</span>
         </button>
 
         <button
@@ -922,8 +924,8 @@ export default function FrontOfficeWorkspace() {
                     <button
                       onClick={() => {
                         setSelectedRoomForModal(room);
-                        setRoomModalMonth(selectedMonth);
-                        loadRoomModalCalendar(room.id, selectedMonth);
+                        setRoomModalStartDate(selectedStartDate);
+                        loadRoomModalCalendar(room.id, selectedStartDate);
                       }}
                       className="btn btn-secondary btn-sm"
                       style={{
@@ -935,10 +937,10 @@ export default function FrontOfficeWorkspace() {
                         gap: '6px',
                         background: 'var(--white)',
                       }}
-                      title="View 1-Month Booking Calendar for this Room"
+                      title="View Next 30 Days Booking Calendar for this Room"
                     >
                       <Calendar size={13} color="var(--brand)" />
-                      <span>📅 1-Month Calendar</span>
+                      <span>📅 Next 30 Days Calendar</span>
                     </button>
 
                     {isDirty && (
@@ -981,45 +983,73 @@ export default function FrontOfficeWorkspace() {
       {activeSubTab === 'calendar' && (
         <div>
           {/* Calendar Toolbar */}
-          <div className="card" style={{ padding: '14px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="card" style={{ padding: '14px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {/* Prev / Next 30 Days navigation */}
               <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-sub)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '2px' }}>
                 <button
-                  onClick={() => calendarData?.prev_month && loadCalendarData(calendarData.prev_month)}
+                  onClick={() => calendarData?.prev_start_date && loadCalendarData(calendarData.prev_start_date, calendarDaysCount)}
                   className="btn btn-secondary btn-sm"
-                  style={{ border: 'none', background: 'transparent', padding: '6px 10px' }}
-                  title="Previous Month"
+                  style={{ border: 'none', background: 'transparent', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  title="Previous 30 Days"
                 >
                   <ChevronLeft size={16} />
+                  <span style={{ fontSize: '11px', fontWeight: '700' }}>Prev 30d</span>
                 </button>
-                <div style={{ padding: '0 12px', fontSize: '14px', fontWeight: '800', color: 'var(--t-900)', minWidth: '130px', textAlign: 'center' }}>
-                  {calendarData?.month_label || 'October 2026'}
+                <div style={{ padding: '0 14px', fontSize: '13.5px', fontWeight: '800', color: 'var(--t-900)', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                  {calendarData?.range_label || 'Next 30 Days (From Today)'}
                 </div>
                 <button
-                  onClick={() => calendarData?.next_month && loadCalendarData(calendarData.next_month)}
+                  onClick={() => calendarData?.next_start_date && loadCalendarData(calendarData.next_start_date, calendarDaysCount)}
                   className="btn btn-secondary btn-sm"
-                  style={{ border: 'none', background: 'transparent', padding: '6px 10px' }}
-                  title="Next Month"
+                  style={{ border: 'none', background: 'transparent', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  title="Next 30 Days"
                 >
+                  <span style={{ fontSize: '11px', fontWeight: '700' }}>Next 30d</span>
                   <ChevronRight size={16} />
                 </button>
               </div>
 
+              {/* Reset to Today button */}
               <button
                 onClick={() => {
-                  const now = new Date();
-                  const mStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                  loadCalendarData(mStr);
+                  const today = new Date().toISOString().slice(0, 10);
+                  setSelectedStartDate(today);
+                  loadCalendarData(today, 30);
                 }}
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '12px' }}
+                className="btn btn-primary btn-sm"
+                style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px' }}
+                title="Reset view to start from Today for the next 30 days"
               >
-                Today
+                <span>⚡ Start From Today</span>
               </button>
+
+              {/* Custom Start Date Picker */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--t-600)', background: 'var(--surface-sub)', padding: '4px 10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
+                <span style={{ fontWeight: '600' }}>From:</span>
+                <input
+                  type="date"
+                  value={selectedStartDate}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSelectedStartDate(e.target.value);
+                      loadCalendarData(e.target.value, calendarDaysCount);
+                    }
+                  }}
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: '4px',
+                    padding: '3px 6px',
+                    fontSize: '12px',
+                    color: 'var(--t-900)',
+                    background: '#fff'
+                  }}
+                />
+              </div>
             </div>
 
             {/* Room Type Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '12.5px', color: 'var(--t-600)', fontWeight: '600' }}>Filter Category:</span>
               <select
                 className="form-select"
@@ -1034,7 +1064,7 @@ export default function FrontOfficeWorkspace() {
               </select>
 
               <button
-                onClick={() => loadCalendarData(selectedMonth)}
+                onClick={() => loadCalendarData(selectedStartDate, calendarDaysCount)}
                 className="btn btn-secondary btn-sm"
                 title="Refresh Calendar"
               >
@@ -1064,7 +1094,7 @@ export default function FrontOfficeWorkspace() {
             {calendarLoading ? (
               <div style={{ textAlign: 'center', padding: '60px' }}>
                 <div style={{ width: '36px', height: '36px', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-                <p style={{ color: 'var(--t-500)', fontSize: '13px' }}>Loading 1-Month Room Tape Chart...</p>
+                <p style={{ color: 'var(--t-500)', fontSize: '13px' }}>Loading Next 30 Days Room Tape Chart...</p>
               </div>
             ) : (
               <div style={{ overflowX: 'auto', maxHeight: '650px' }}>
@@ -1094,31 +1124,39 @@ export default function FrontOfficeWorkspace() {
                           style={{
                             padding: '8px 4px',
                             textAlign: 'center',
-                            minWidth: '42px',
+                            minWidth: '50px',
                             borderLeft: '1px solid var(--border-sub)',
-                            background: d.is_today ? 'var(--brand-50)' : 'transparent',
+                            background: d.is_today
+                              ? 'var(--brand-50)'
+                              : d.is_weekend
+                              ? 'rgba(0,0,0,0.02)'
+                              : 'transparent',
                             color: d.is_today ? 'var(--brand)' : 'var(--t-700)',
                           }}
                         >
-                          <div style={{ fontSize: '11px', fontWeight: d.is_today ? '800' : '600' }}>
+                          <div style={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: d.is_today ? '800' : '600', color: d.is_today ? 'var(--brand)' : 'var(--t-500)' }}>
                             {d.day_name}
                           </div>
                           <div
                             style={{
-                              fontSize: '13px',
+                              fontSize: '12px',
                               fontWeight: '800',
                               marginTop: '2px',
-                              display: 'inline-block',
-                              width: d.is_today ? '22px' : 'auto',
-                              height: d.is_today ? '22px' : 'auto',
-                              lineHeight: d.is_today ? '22px' : 'normal',
-                              borderRadius: d.is_today ? '50%' : 'none',
+                              padding: d.is_today ? '2px 6px' : '0',
+                              borderRadius: d.is_today ? '12px' : '0',
                               background: d.is_today ? 'var(--brand)' : 'transparent',
                               color: d.is_today ? '#fff' : 'inherit',
+                              display: 'inline-block',
+                              whiteSpace: 'nowrap'
                             }}
                           >
-                            {d.day}
+                            {d.formatted_date || `${d.day} ${d.month_short || ''}`}
                           </div>
+                          {d.is_today && (
+                            <div style={{ fontSize: '8.5px', fontWeight: '800', color: 'var(--brand)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '1px' }}>
+                              TODAY
+                            </div>
+                          )}
                         </th>
                       ))}
                     </tr>
@@ -1157,8 +1195,8 @@ export default function FrontOfficeWorkspace() {
                               <button
                                 onClick={() => {
                                   setSelectedRoomForModal(room);
-                                  setRoomModalMonth(selectedMonth);
-                                  loadRoomModalCalendar(room.id, selectedMonth);
+                                  setRoomModalStartDate(selectedStartDate);
+                                  loadRoomModalCalendar(room.id, selectedStartDate);
                                 }}
                                 className="btn btn-secondary btn-sm"
                                 style={{ padding: '3px 8px', fontSize: '10.5px' }}
@@ -2286,23 +2324,39 @@ export default function FrontOfficeWorkspace() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-sub)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '2px' }}>
                 <button
-                  onClick={() => roomModalCalendar?.prev_month && loadRoomModalCalendar(selectedRoomForModal.id, roomModalCalendar.prev_month)}
+                  onClick={() => roomModalCalendar?.prev_start_date && loadRoomModalCalendar(selectedRoomForModal.id, roomModalCalendar.prev_start_date)}
                   className="btn btn-secondary btn-sm"
-                  style={{ border: 'none', background: 'transparent', padding: '6px 10px' }}
+                  style={{ border: 'none', background: 'transparent', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  title="Previous 30 Days"
                 >
                   <ChevronLeft size={16} />
+                  <span style={{ fontSize: '11px', fontWeight: '700' }}>Prev 30d</span>
                 </button>
-                <div style={{ padding: '0 14px', fontSize: '14px', fontWeight: '800', color: 'var(--t-900)', minWidth: '140px', textAlign: 'center' }}>
-                  {roomModalCalendar?.month_label || 'October 2026'}
+                <div style={{ padding: '0 14px', fontSize: '13.5px', fontWeight: '800', color: 'var(--t-900)', minWidth: '160px', textAlign: 'center' }}>
+                  {roomModalCalendar?.range_label || 'Next 30 Days (From Today)'}
                 </div>
                 <button
-                  onClick={() => roomModalCalendar?.next_month && loadRoomModalCalendar(selectedRoomForModal.id, roomModalCalendar.next_month)}
+                  onClick={() => roomModalCalendar?.next_start_date && loadRoomModalCalendar(selectedRoomForModal.id, roomModalCalendar.next_start_date)}
                   className="btn btn-secondary btn-sm"
-                  style={{ border: 'none', background: 'transparent', padding: '6px 10px' }}
+                  style={{ border: 'none', background: 'transparent', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  title="Next 30 Days"
                 >
+                  <span style={{ fontSize: '11px', fontWeight: '700' }}>Next 30d</span>
                   <ChevronRight size={16} />
                 </button>
               </div>
+
+              <button
+                onClick={() => {
+                  const today = new Date().toISOString().slice(0, 10);
+                  setRoomModalStartDate(today);
+                  loadRoomModalCalendar(selectedRoomForModal.id, today);
+                }}
+                className="btn btn-primary btn-sm"
+                style={{ fontSize: '12px' }}
+              >
+                ⚡ Start From Today
+              </button>
 
               {/* Quick stats for this room */}
               {roomModalCalendar?.rooms?.[0] && (
@@ -2411,8 +2465,8 @@ export default function FrontOfficeWorkspace() {
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <span style={{ fontSize: '13px', fontWeight: '800', color: d.is_today ? 'var(--brand)' : 'var(--t-900)' }}>
-                                {d.day}
+                              <span style={{ fontSize: '12px', fontWeight: '800', color: d.is_today ? 'var(--brand)' : 'var(--t-900)' }}>
+                                {d.formatted_date || `${d.day} ${d.month_short || ''}`}
                               </span>
                               {d.is_today && (
                                 <span className="badge badge-brand" style={{ fontSize: '8.5px', padding: '1px 5px' }}>

@@ -186,6 +186,10 @@ class FrontOfficeTest extends TestCase
                 'success' => true,
             ])
             ->assertJsonStructure([
+                'start_date',
+                'end_date',
+                'range_label',
+                'days_count',
                 'month',
                 'month_label',
                 'days_in_month',
@@ -207,5 +211,16 @@ class FrontOfficeTest extends TestCase
                 ],
                 'daily_aggregates',
             ]);
+
+        // Also test default call without parameters: starts from TODAY for 30 days
+        $defaultResponse = $this->actingAs($frontDeskStaff)
+            ->withHeaders(['X-Hotel-ID' => $hotel->id])
+            ->getJson('/api/v1/front-office/rooms/calendar');
+
+        $defaultResponse->assertStatus(200);
+        $this->assertEquals(Carbon::today()->format('Y-m-d'), $defaultResponse->json('start_date'));
+        $this->assertEquals(30, $defaultResponse->json('days_count'));
+        $this->assertEquals(30, count($defaultResponse->json('days')));
+        $this->assertTrue($defaultResponse->json('days.0.is_today'));
     }
 }
