@@ -9,6 +9,8 @@ import {
   AlertCircle,
   Building2,
   Hotel,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export default function SuperAdminDashboard({ activeTab = 'overview', onNavigateTab }) {
@@ -27,6 +29,7 @@ export default function SuperAdminDashboard({ activeTab = 'overview', onNavigate
   // Modals
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [showHotelModal, setShowHotelModal] = useState(false);
+  const [showOwnerPassword, setShowOwnerPassword] = useState(false);
 
   // New Org Form
   const [orgForm, setOrgForm] = useState({
@@ -376,13 +379,38 @@ export default function SuperAdminDashboard({ activeTab = 'overview', onNavigate
                   </div>
                   <div className="form-group">
                     <label className="form-label">Initial Password *</label>
-                    <input
-                      type="password"
-                      className="form-input"
-                      required
-                      value={orgForm.owner_password}
-                      onChange={(e) => setOrgForm({ ...orgForm, owner_password: e.target.value })}
-                    />
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showOwnerPassword ? 'text' : 'password'}
+                        className="form-input"
+                        required
+                        value={orgForm.owner_password}
+                        onChange={(e) => setOrgForm({ ...orgForm, owner_password: e.target.value })}
+                        style={{ paddingRight: '40px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowOwnerPassword(!showOwnerPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          padding: '4px',
+                          cursor: 'pointer',
+                          color: showOwnerPassword ? 'var(--brand)' : 'var(--t-500)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        title={showOwnerPassword ? 'Hide password' : 'View password'}
+                        aria-label={showOwnerPassword ? 'Hide password' : 'View password'}
+                      >
+                        {showOwnerPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
