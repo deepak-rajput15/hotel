@@ -10,6 +10,9 @@ function AppContent() {
   const { user, loading, currentHotel } = useAuth();
   const [currentTab, setCurrentTab] = useState('overview');
 
+  const isSuperAdmin = !!user?.is_platform_admin;
+  const isStaff = !!user?.assigned_role && !user?.is_org_owner;
+
   React.useEffect(() => {
     if (user && !user.is_platform_admin) {
       if (user.assigned_role) {
@@ -32,6 +35,21 @@ function AppContent() {
     }
   }, [user?.id, currentHotel?.id]);
 
+  // Route protection: Staff should never access owner tabs
+  React.useEffect(() => {
+    if (isStaff && ['dashboard', 'portfolio_overview', 'staff', 'overview'].includes(currentTab)) {
+      const roleAllowed = {
+        'head-chef': 'kitchen',
+        'front-desk': 'front_office',
+        'restaurant-cashier': 'restaurant',
+        'storekeeper': 'store',
+      };
+      if (user?.assigned_role?.slug) {
+        setCurrentTab(roleAllowed[user.assigned_role.slug] || 'front_office');
+      }
+    }
+  }, [isStaff, currentTab, user?.assigned_role?.slug]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-app)' }}>
@@ -46,22 +64,6 @@ function AppContent() {
   if (!user) {
     return <Login />;
   }
-
-  const isSuperAdmin = user?.is_platform_admin;
-  const isStaff = !!user?.assigned_role && !user?.is_org_owner;
-
-  // Route protection: Staff should never access owner tabs
-  React.useEffect(() => {
-    if (isStaff && ['dashboard', 'portfolio_overview', 'staff', 'overview'].includes(currentTab)) {
-      const roleAllowed = {
-        'head-chef': 'kitchen',
-        'front-desk': 'front_office',
-        'restaurant-cashier': 'restaurant',
-        'storekeeper': 'store',
-      };
-      setCurrentTab(roleAllowed[user.assigned_role.slug] || 'front_office');
-    }
-  }, [isStaff, currentTab, user?.assigned_role]);
 
   const getPageTitle = () => {
     if (isSuperAdmin) {
