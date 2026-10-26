@@ -58,6 +58,63 @@ class FrontOfficeController extends Controller
             $q->where('hotel_id', $hotel->id);
         })->whereDate('created_at', $today)->sum('amount');
 
+        // Status breakdown for available rooms chart
+        $statusBreakdown = [
+            'available' => [
+                'label' => 'Available Clean',
+                'count' => $availableRooms,
+                'pct' => $totalRooms > 0 ? round(($availableRooms / $totalRooms) * 100, 1) : 0,
+                'color' => '#10b981',
+            ],
+            'occupied' => [
+                'label' => 'Occupied Stay',
+                'count' => $occupiedRooms,
+                'pct' => $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100, 1) : 0,
+                'color' => '#6366f1',
+            ],
+            'dirty' => [
+                'label' => 'Needs Housekeeping',
+                'count' => $dirtyRooms,
+                'pct' => $totalRooms > 0 ? round(($dirtyRooms / $totalRooms) * 100, 1) : 0,
+                'color' => '#f59e0b',
+            ],
+            'maintenance' => [
+                'label' => 'Maintenance',
+                'count' => $maintenanceRooms,
+                'pct' => $totalRooms > 0 ? round(($maintenanceRooms / $totalRooms) * 100, 1) : 0,
+                'color' => '#ef4444',
+            ],
+        ];
+
+        // Room types inventory distribution (Deluxe, Suite, etc.)
+        $roomTypes = $hotel->rooms()
+            ->select(
+                'room_type',
+                DB::raw('count(*) as total'),
+                DB::raw("sum(case when status = 'AVAILABLE' then 1 else 0 end) as available"),
+                DB::raw("sum(case when status = 'OCCUPIED' then 1 else 0 end) as occupied"),
+                DB::raw("sum(case when status = 'DIRTY' then 1 else 0 end) as dirty"),
+                DB::raw("sum(case when status = 'MAINTENANCE' then 1 else 0 end) as maintenance")
+            )
+            ->groupBy('room_type')
+            ->orderBy('room_type')
+            ->get()
+            ->map(function ($rt) {
+                $total = (int) $rt->total;
+                $avail = (int) $rt->available;
+                $occ = (int) $rt->occupied;
+                return [
+                    'room_type' => $rt->room_type,
+                    'total' => $total,
+                    'available' => $avail,
+                    'occupied' => $occ,
+                    'dirty' => (int) $rt->dirty,
+                    'maintenance' => (int) $rt->maintenance,
+                    'occupancy_pct' => $total > 0 ? round(($occ / $total) * 100) : 0,
+                    'availability_pct' => $total > 0 ? round(($avail / $total) * 100) : 0,
+                ];
+            });
+
         return response()->json([
             'success' => true,
             'module' => 'front_office',
@@ -78,7 +135,169 @@ class FrontOfficeController extends Controller
                 'today_arrivals' => $todayArrivals,
                 'today_departures' => $todayDepartures,
                 'today_collections' => (float) $todayCollections,
+                'status_breakdown' => $statusBreakdown,
+                'room_types' => $roomTypes,
             ],
+        ]);
+    }
+
+    /**
+     * 1-Month Room Occupancy Calendar (Tape Chart) & Availability Grid.
+     */
+    public function calendar(Request $request): JsonResponse
+    {
+        $hotel = $this->getHotel($request);
+
+        $monthStr = $request->query('month', Carbon::now()->format('Y-m')); // e.g. "2026-10"
+        try {
+            $monthStart = Carbon::createFromFormat('Y-m', $monthStr)->startOfMonth();
+        } catch (\Exception $e) {
+            $monthStart = Carbon::now()->startOfMonth();
+        }
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        $daysInMonth = $monthStart->daysInMonth;
+
+        $roomId = $request->query('room_id');
+
+        $roomsQuery = $hotel->rooms()->orderBy('room_number', 'asc');
+        if ($roomId) {
+            $roomsQuery->where('id', $roomId);
+        }
+        $rooms = $roomsQuery->get();
+
+        // Fetch bookings overlapping this month
+        $bookings = $hotel->bookings()
+            ->with(['guest', 'room'])
+            ->whereIn('status', ['CHECKED_IN', 'RESERVED', 'CHECKED_OUT'])
+            ->where(function ($q) use ($monthStart, $monthEnd) {
+                $q->where('check_in_at', '<=', $monthEnd)
+                  ->where('expected_check_out_at', '>=', $monthStart);
+            })
+            ->get();
+
+        // Build list of calendar days in this month
+        $calendarDays = [];
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $date = $monthStart->copy()->day($day);
+            $calendarDays[] = [
+                'day' => $day,
+                'date' => $date->format('Y-m-d'),
+                'day_name' => $date->format('D'), // Mon, Tue...
+                'is_weekend' => $date->isWeekend(),
+                'is_today' => $date->isToday(),
+            ];
+        }
+
+        // Map rooms with their daily booking status
+        $roomsCalendar = $rooms->map(function ($room) use ($calendarDays, $bookings) {
+            $roomBookings = $bookings->where('room_id', $room->id);
+
+            $daysStatus = [];
+            foreach ($calendarDays as $calDay) {
+                $dayDate = Carbon::parse($calDay['date'])->startOfDay();
+
+                // Find booking covering this date
+                $activeBooking = $roomBookings->first(function ($b) use ($dayDate) {
+                    $in = Carbon::parse($b->check_in_at)->startOfDay();
+                    $out = Carbon::parse($b->expected_check_out_at)->startOfDay();
+                    return $dayDate->greaterThanOrEqualTo($in) && $dayDate->lessThanOrEqualTo($out);
+                });
+
+                $status = 'AVAILABLE';
+                $bookingInfo = null;
+
+                if ($activeBooking) {
+                    $status = 'BOOKED';
+                    $bookingInfo = [
+                        'id' => $activeBooking->id,
+                        'booking_number' => $activeBooking->booking_number,
+                        'guest_name' => $activeBooking->guest?->full_name,
+                        'guest_phone' => $activeBooking->guest?->phone,
+                        'guest_id_type' => $activeBooking->guest?->id_type,
+                        'status' => $activeBooking->status,
+                        'check_in_at' => Carbon::parse($activeBooking->check_in_at)->format('d M'),
+                        'expected_check_out_at' => Carbon::parse($activeBooking->expected_check_out_at)->format('d M'),
+                        'grand_total' => (float) $activeBooking->grand_total,
+                        'balance_amount' => (float) $activeBooking->balance_amount,
+                        'is_check_in_day' => $dayDate->isSameDay(Carbon::parse($activeBooking->check_in_at)),
+                        'is_check_out_day' => $dayDate->isSameDay(Carbon::parse($activeBooking->expected_check_out_at)),
+                    ];
+                } elseif ($calDay['is_today'] && $room->status === 'DIRTY') {
+                    $status = 'DIRTY';
+                } elseif ($room->status === 'MAINTENANCE') {
+                    $status = 'MAINTENANCE';
+                }
+
+                $daysStatus[] = [
+                    'day' => $calDay['day'],
+                    'date' => $calDay['date'],
+                    'day_name' => $calDay['day_name'],
+                    'is_today' => $calDay['is_today'],
+                    'status' => $status,
+                    'booking' => $bookingInfo,
+                ];
+            }
+
+            $bookedCount = collect($daysStatus)->where('status', 'BOOKED')->count();
+
+            return [
+                'id' => $room->id,
+                'room_number' => $room->room_number,
+                'room_type' => $room->room_type,
+                'floor' => $room->floor,
+                'base_price' => (float) $room->base_price,
+                'current_status' => $room->status,
+                'booked_days_count' => $bookedCount,
+                'available_days_count' => count($daysStatus) - $bookedCount,
+                'occupancy_pct' => count($daysStatus) > 0 ? round(($bookedCount / count($daysStatus)) * 100, 1) . '%' : '0%',
+                'days' => $daysStatus,
+                'bookings_list' => $roomBookings->map(function ($b) {
+                    return [
+                        'id' => $b->id,
+                        'booking_number' => $b->booking_number,
+                        'guest_name' => $b->guest?->full_name,
+                        'check_in_at' => Carbon::parse($b->check_in_at)->format('d M Y'),
+                        'expected_check_out_at' => Carbon::parse($b->expected_check_out_at)->format('d M Y'),
+                        'status' => $b->status,
+                    ];
+                })->values(),
+            ];
+        });
+
+        // Calculate daily occupancy aggregates across all rooms
+        $dailyAggregates = [];
+        foreach ($calendarDays as $calDay) {
+            $totalRoomsCount = $rooms->count();
+            $bookedOnDay = 0;
+            foreach ($roomsCalendar as $rCal) {
+                $dayEntry = collect($rCal['days'])->firstWhere('date', $calDay['date']);
+                if ($dayEntry && $dayEntry['status'] === 'BOOKED') {
+                    $bookedOnDay++;
+                }
+            }
+            $availableOnDay = $totalRoomsCount - $bookedOnDay;
+            $dailyAggregates[] = [
+                'date' => $calDay['date'],
+                'day' => $calDay['day'],
+                'day_name' => $calDay['day_name'],
+                'is_today' => $calDay['is_today'],
+                'total_rooms' => $totalRoomsCount,
+                'booked_rooms' => $bookedOnDay,
+                'available_rooms' => $availableOnDay,
+                'occupancy_rate' => $totalRoomsCount > 0 ? round(($bookedOnDay / $totalRoomsCount) * 100) : 0,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'month' => $monthStart->format('Y-m'),
+            'month_label' => $monthStart->format('F Y'),
+            'prev_month' => $monthStart->copy()->subMonth()->format('Y-m'),
+            'next_month' => $monthStart->copy()->addMonth()->format('Y-m'),
+            'days_in_month' => $daysInMonth,
+            'days' => $calendarDays,
+            'rooms' => $roomsCalendar,
+            'daily_aggregates' => $dailyAggregates,
         ]);
     }
 

@@ -87,12 +87,12 @@ function AppContent() {
         switch (currentTab) {
           case 'staff': return 'Staff & Access Credentials';
           case 'properties': return 'Group Properties Performance';
-          default: return `${user?.organization?.name || 'Group'} &bull; Consolidated Portfolio`;
+          default: return `${user?.organization?.name || 'Group'} • Consolidated Portfolio`;
         }
       }
       switch (currentTab) {
         case 'dashboard': return `${currentHotel?.name || 'Hotel'} Executive Dashboard`;
-        case 'staff': return `${currentHotel?.name || 'Hotel'} &bull; Staff Management`;
+        case 'staff': return `${currentHotel?.name || 'Hotel'} • Staff Management`;
         case 'front_office': return 'Front Office Operations';
         case 'rooms': return 'Rooms Management & Rack Grid';
         case 'restaurant': return 'Restaurant & Dining POS';
@@ -108,12 +108,12 @@ function AppContent() {
     if (isSuperAdmin) {
       return 'Manage hotel owner accounts, provision properties, and toggle modular subscription access.';
     } else if (isStaff) {
-      return `Operational Desk &bull; Property: ${currentHotel?.name || 'Hotel'} (${currentHotel?.hotel_code || 'HTL-1001'})`;
+      return `Operational Desk • Property: ${currentHotel?.name || 'Hotel'} (${currentHotel?.hotel_code || 'HTL-1001'})`;
     } else {
       if (currentHotel?.id === 'ALL') {
         return `Consolidated enterprise view aggregated across all ${user?.accessible_hotels?.length || 0} properties`;
       }
-      return `Property Console &bull; ${currentHotel?.name || 'Hotel'} (${currentHotel?.hotel_code || 'HTL-1001'})`;
+      return `Property Console • ${currentHotel?.name || 'Hotel'} (${currentHotel?.hotel_code || 'HTL-1001'})`;
     }
   };
 

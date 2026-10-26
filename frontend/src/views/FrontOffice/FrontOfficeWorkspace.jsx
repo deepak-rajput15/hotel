@@ -24,6 +24,7 @@ import {
   DollarSign,
   Printer,
   ChevronRight,
+  ChevronLeft,
   MapPin,
   FileCheck,
   Phone,
@@ -31,17 +32,35 @@ import {
   Building,
   ArrowRight,
   TrendingUp,
+  BarChart3,
+  CalendarDays,
 } from 'lucide-react';
 
 export default function FrontOfficeWorkspace() {
   const { currentHotel } = useAuth();
 
-  const [activeSubTab, setActiveSubTab] = useState('in_house'); // in_house, rack, reservations
+  const [activeSubTab, setActiveSubTab] = useState('in_house'); // in_house, rack, calendar, reservations
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // 1-Month Calendar & Availability Chart State
+  const [calendarData, setCalendarData] = useState(null);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [calendarRoomTypeFilter, setCalendarRoomTypeFilter] = useState('ALL');
+  const [selectedRoomForModal, setSelectedRoomForModal] = useState(null);
+  const [roomModalMonth, setRoomModalMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [roomModalCalendar, setRoomModalCalendar] = useState(null);
+  const [roomModalLoading, setRoomModalLoading] = useState(false);
 
   // Modals
   const [showCheckInModal, setShowCheckInModal] = useState(false);
@@ -127,6 +146,49 @@ export default function FrontOfficeWorkspace() {
       setLoading(false);
     }
   };
+
+  const loadCalendarData = async (monthToLoad = selectedMonth) => {
+    try {
+      setCalendarLoading(true);
+      const res = await frontOfficeApi.getCalendar({ month: monthToLoad });
+      if (res.success) {
+        setCalendarData(res);
+        setSelectedMonth(res.month);
+      }
+    } catch (err) {
+      console.error('Failed to load calendar data:', err);
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
+
+  const loadRoomModalCalendar = async (roomId, monthToLoad = roomModalMonth) => {
+    if (!roomId) return;
+    try {
+      setRoomModalLoading(true);
+      const res = await frontOfficeApi.getCalendar({ room_id: roomId, month: monthToLoad });
+      if (res.success) {
+        setRoomModalCalendar(res);
+        setRoomModalMonth(res.month);
+      }
+    } catch (err) {
+      console.error('Failed to load single room calendar:', err);
+    } finally {
+      setRoomModalLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSubTab === 'calendar') {
+      loadCalendarData(selectedMonth);
+    }
+  }, [activeSubTab, selectedMonth]);
+
+  useEffect(() => {
+    if (selectedRoomForModal) {
+      loadRoomModalCalendar(selectedRoomForModal.id, roomModalMonth);
+    }
+  }, [selectedRoomForModal, roomModalMonth]);
 
   const handleRoomStatusUpdate = async (roomId, newStatus) => {
     try {
@@ -403,8 +465,111 @@ export default function FrontOfficeWorkspace() {
         />
       </div>
 
+      {/* Real-time Available Rooms Inventory Chart */}
+      <div className="card" style={{ marginBottom: '22px', padding: '18px 20px', background: 'var(--white)', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'var(--brand-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
+              <BarChart3 size={18} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--t-900)' }}>
+                Real-Time Room Inventory & Availability Distribution
+              </h3>
+              <p style={{ fontSize: '12px', color: 'var(--t-500)' }}>
+                Live property availability across categories & housekeeping turnover
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', fontWeight: '600', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} />
+              <span style={{ color: 'var(--t-700)' }}>Available Clean: {overview?.available_rooms ?? 0}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1' }} />
+              <span style={{ color: 'var(--t-700)' }}>Occupied: {overview?.occupied_rooms ?? 0}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
+              <span style={{ color: 'var(--t-700)' }}>Needs Cleaning: {overview?.dirty_rooms ?? 0}</span>
+            </div>
+            {overview?.maintenance_rooms > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
+                <span style={{ color: 'var(--t-700)' }}>Maintenance: {overview?.maintenance_rooms}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Multi-segment visual progress bar */}
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{ height: '10px', width: '100%', borderRadius: '5px', overflow: 'hidden', display: 'flex', background: 'var(--border-sub)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}>
+            <div style={{ width: `${overview?.status_breakdown?.available?.pct || 0}%`, background: '#10b981', transition: 'width 0.4s ease' }} title={`Available: ${overview?.status_breakdown?.available?.count || 0}`} />
+            <div style={{ width: `${overview?.status_breakdown?.occupied?.pct || 0}%`, background: '#6366f1', transition: 'width 0.4s ease' }} title={`Occupied: ${overview?.status_breakdown?.occupied?.count || 0}`} />
+            <div style={{ width: `${overview?.status_breakdown?.dirty?.pct || 0}%`, background: '#f59e0b', transition: 'width 0.4s ease' }} title={`Needs Cleaning: ${overview?.status_breakdown?.dirty?.count || 0}`} />
+            <div style={{ width: `${overview?.status_breakdown?.maintenance?.pct || 0}%`, background: '#ef4444', transition: 'width 0.4s ease' }} title={`Maintenance: ${overview?.status_breakdown?.maintenance?.count || 0}`} />
+          </div>
+        </div>
+
+        {/* Category Breakdown Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+          {(overview?.room_types || []).map((rt) => {
+            const availPct = rt.total > 0 ? Math.round((rt.available / rt.total) * 100) : 0;
+            return (
+              <div
+                key={rt.room_type}
+                style={{
+                  background: 'var(--surface-sub)',
+                  borderRadius: 'var(--r-sm)',
+                  padding: '12px 14px',
+                  border: '1px solid var(--border-sub)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--t-900)' }}>
+                    {rt.room_type}
+                  </span>
+                  <span
+                    className="badge"
+                    style={{
+                      fontSize: '10px',
+                      background: rt.available > 0 ? 'var(--success-bg)' : 'var(--error-bg)',
+                      color: rt.available > 0 ? 'var(--success)' : 'var(--error)',
+                      borderColor: rt.available > 0 ? 'var(--success-border)' : 'var(--error-border)',
+                      fontWeight: '700',
+                    }}
+                  >
+                    {rt.available > 0 ? `${rt.available} Ready` : '0 Available'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--t-500)', marginBottom: '5px' }}>
+                  <span>{rt.available} Clean / {rt.total} Total</span>
+                  <strong style={{ color: rt.available > 0 ? 'var(--success)' : 'var(--t-600)' }}>{availPct}% Ready</strong>
+                </div>
+
+                <div style={{ height: '6px', width: '100%', borderRadius: '3px', background: 'var(--border)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${availPct}%`,
+                      height: '100%',
+                      background: rt.available > 0 ? 'var(--success)' : 'var(--t-400)',
+                      borderRadius: '3px',
+                      transition: 'width 0.4s ease',
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Sub-Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-sub)', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-sub)', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button
           onClick={() => setActiveSubTab('in_house')}
           className={`tab-btn ${activeSubTab === 'in_house' ? 'tab-btn-active' : ''}`}
@@ -449,6 +614,32 @@ export default function FrontOfficeWorkspace() {
         >
           <Bed size={16} />
           <span>Visual Room Rack ({rooms.length} Rooms)</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveSubTab('calendar');
+            loadCalendarData(selectedMonth);
+          }}
+          className={`tab-btn ${activeSubTab === 'calendar' ? 'tab-btn-active' : ''}`}
+          style={{
+            padding: '10px 18px',
+            fontSize: '13.5px',
+            fontWeight: activeSubTab === 'calendar' ? '700' : '500',
+            borderBottom: activeSubTab === 'calendar' ? '2px solid var(--brand)' : '2px solid transparent',
+            color: activeSubTab === 'calendar' ? 'var(--brand)' : 'var(--t-600)',
+            background: 'none',
+            borderTop: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <Calendar size={16} />
+          <span>1-Month Room Calendar (Tape Chart)</span>
         </button>
 
         <button
@@ -726,8 +917,30 @@ export default function FrontOfficeWorkspace() {
                     </div>
                   )}
 
-                  {/* Housekeeping Toggle Action */}
-                  <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  {/* Actions: Room 1-Month Calendar & Check-in / Housekeeping */}
+                  <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <button
+                      onClick={() => {
+                        setSelectedRoomForModal(room);
+                        setRoomModalMonth(selectedMonth);
+                        loadRoomModalCalendar(room.id, selectedMonth);
+                      }}
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        width: '100%',
+                        fontSize: '11.5px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        background: 'var(--white)',
+                      }}
+                      title="View 1-Month Booking Calendar for this Room"
+                    >
+                      <Calendar size={13} color="var(--brand)" />
+                      <span>📅 1-Month Calendar</span>
+                    </button>
+
                     {isDirty && (
                       <button
                         onClick={() => handleRoomStatusUpdate(room.id, 'AVAILABLE')}
@@ -764,7 +977,376 @@ export default function FrontOfficeWorkspace() {
         </div>
       )}
 
-      {/* TAB 3: BOOKING REGISTER & CHECKOUT HISTORY */}
+      {/* TAB 3: 1-MONTH PROPERTY AVAILABILITY CALENDAR (TAPE CHART) */}
+      {activeSubTab === 'calendar' && (
+        <div>
+          {/* Calendar Toolbar */}
+          <div className="card" style={{ padding: '14px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-sub)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '2px' }}>
+                <button
+                  onClick={() => calendarData?.prev_month && loadCalendarData(calendarData.prev_month)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ border: 'none', background: 'transparent', padding: '6px 10px' }}
+                  title="Previous Month"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <div style={{ padding: '0 12px', fontSize: '14px', fontWeight: '800', color: 'var(--t-900)', minWidth: '130px', textAlign: 'center' }}>
+                  {calendarData?.month_label || 'October 2026'}
+                </div>
+                <button
+                  onClick={() => calendarData?.next_month && loadCalendarData(calendarData.next_month)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ border: 'none', background: 'transparent', padding: '6px 10px' }}
+                  title="Next Month"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  const now = new Date();
+                  const mStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                  loadCalendarData(mStr);
+                }}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '12px' }}
+              >
+                Today
+              </button>
+            </div>
+
+            {/* Room Type Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '12.5px', color: 'var(--t-600)', fontWeight: '600' }}>Filter Category:</span>
+              <select
+                className="form-select"
+                style={{ fontSize: '12.5px', padding: '6px 12px', width: 'auto' }}
+                value={calendarRoomTypeFilter}
+                onChange={(e) => setCalendarRoomTypeFilter(e.target.value)}
+              >
+                <option value="ALL">All Categories ({rooms.length} Rooms)</option>
+                {[...new Set(rooms.map(r => r.room_type))].map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => loadCalendarData(selectedMonth)}
+                className="btn btn-secondary btn-sm"
+                title="Refresh Calendar"
+              >
+                <RefreshCw size={13} className={calendarLoading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+
+            {/* Status Legend */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#10b981' }} />
+                <span>Available to Book</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'var(--brand)' }} />
+                <span>Booked Stay</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#f59e0b' }} />
+                <span>Dirty / Cleaning</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Calendar Grid Table */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {calendarLoading ? (
+              <div style={{ textAlign: 'center', padding: '60px' }}>
+                <div style={{ width: '36px', height: '36px', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+                <p style={{ color: 'var(--t-500)', fontSize: '13px' }}>Loading 1-Month Room Tape Chart...</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto', maxHeight: '650px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--surface-sub)', borderBottom: '2px solid var(--border)' }}>
+                      <th
+                        style={{
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 20,
+                          background: 'var(--surface-sub)',
+                          padding: '10px 14px',
+                          textAlign: 'left',
+                          minWidth: '180px',
+                          boxShadow: '2px 0 4px rgba(0,0,0,0.04)',
+                          fontSize: '12px',
+                          fontWeight: '800',
+                          color: 'var(--t-800)',
+                        }}
+                      >
+                        Room & Tariff
+                      </th>
+                      {(calendarData?.days || []).map((d) => (
+                        <th
+                          key={d.date}
+                          style={{
+                            padding: '8px 4px',
+                            textAlign: 'center',
+                            minWidth: '42px',
+                            borderLeft: '1px solid var(--border-sub)',
+                            background: d.is_today ? 'var(--brand-50)' : 'transparent',
+                            color: d.is_today ? 'var(--brand)' : 'var(--t-700)',
+                          }}
+                        >
+                          <div style={{ fontSize: '11px', fontWeight: d.is_today ? '800' : '600' }}>
+                            {d.day_name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '13px',
+                              fontWeight: '800',
+                              marginTop: '2px',
+                              display: 'inline-block',
+                              width: d.is_today ? '22px' : 'auto',
+                              height: d.is_today ? '22px' : 'auto',
+                              lineHeight: d.is_today ? '22px' : 'normal',
+                              borderRadius: d.is_today ? '50%' : 'none',
+                              background: d.is_today ? 'var(--brand)' : 'transparent',
+                              color: d.is_today ? '#fff' : 'inherit',
+                            }}
+                          >
+                            {d.day}
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {(calendarData?.rooms || [])
+                      .filter(r => calendarRoomTypeFilter === 'ALL' || r.room_type === calendarRoomTypeFilter)
+                      .map((room) => (
+                        <tr key={room.id} style={{ borderBottom: '1px solid var(--border-sub)' }}>
+                          {/* Sticky Room Details Column */}
+                          <td
+                            style={{
+                              position: 'sticky',
+                              left: 0,
+                              zIndex: 10,
+                              background: 'var(--white)',
+                              padding: '10px 14px',
+                              boxShadow: '2px 0 4px rgba(0,0,0,0.04)',
+                              borderRight: '1px solid var(--border)',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div>
+                                <span style={{ fontWeight: '800', fontSize: '14px', color: 'var(--t-900)' }}>
+                                  Room {room.room_number}
+                                </span>
+                                <div style={{ fontSize: '11px', color: 'var(--t-500)', marginTop: '1px' }}>
+                                  {room.room_type}
+                                </div>
+                                <div style={{ fontSize: '10.5px', color: 'var(--brand)', fontWeight: '700' }}>
+                                  ₹{Number(room.base_price).toLocaleString('en-IN')}/n
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => {
+                                  setSelectedRoomForModal(room);
+                                  setRoomModalMonth(selectedMonth);
+                                  loadRoomModalCalendar(room.id, selectedMonth);
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '3px 8px', fontSize: '10.5px' }}
+                                title="Open Single Room Calendar"
+                              >
+                                📅 View
+                              </button>
+                            </div>
+                          </td>
+
+                          {/* Day-by-Day Calendar Cells */}
+                          {room.days.map((d) => {
+                            const isBooked = d.status === 'BOOKED';
+                            const isDirty = d.status === 'DIRTY';
+                            const isMaint = d.status === 'MAINTENANCE';
+
+                            return (
+                              <td
+                                key={d.date}
+                                style={{
+                                  padding: '4px 2px',
+                                  textAlign: 'center',
+                                  borderLeft: '1px solid var(--border-sub)',
+                                  background: isBooked
+                                    ? 'var(--brand-50)'
+                                    : isDirty
+                                    ? '#fffbeb'
+                                    : isMaint
+                                    ? '#fef2f2'
+                                    : d.is_today
+                                    ? 'rgba(99, 102, 241, 0.05)'
+                                    : '#fff',
+                                  verticalAlign: 'middle',
+                                }}
+                              >
+                                {isBooked ? (
+                                  <div
+                                    onClick={() => {
+                                      if (d.booking?.id) {
+                                        const found = bookings.find(b => b.id === d.booking.id);
+                                        if (found) setShowFolioModal(found);
+                                        else {
+                                          frontOfficeApi.getBookingDetail(d.booking.id).then(res => {
+                                            if (res.success) setShowFolioModal(res.booking);
+                                          });
+                                        }
+                                      }
+                                    }}
+                                    style={{
+                                      background: 'var(--brand)',
+                                      color: 'white',
+                                      borderRadius: '4px',
+                                      padding: '4px 2px',
+                                      fontSize: '9.5px',
+                                      fontWeight: '700',
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                    }}
+                                    title={`Booked by: ${d.booking?.guest_name} (${d.booking?.booking_number})\nCheck-in: ${d.booking?.check_in_at} | Checkout: ${d.booking?.expected_check_out_at}`}
+                                  >
+                                    👤 {d.booking?.guest_name ? d.booking.guest_name.split(' ')[0] : 'Booked'}
+                                  </div>
+                                ) : isDirty ? (
+                                  <div
+                                    onClick={() => handleRoomStatusUpdate(room.id, 'AVAILABLE')}
+                                    style={{
+                                      background: '#fef3c7',
+                                      color: '#b45309',
+                                      border: '1px solid #fde68a',
+                                      borderRadius: '4px',
+                                      padding: '3px 1px',
+                                      fontSize: '9.5px',
+                                      fontWeight: '700',
+                                      cursor: 'pointer',
+                                    }}
+                                    title="Dirty - Click to Mark Clean"
+                                  >
+                                    🧹 Dirty
+                                  </div>
+                                ) : isMaint ? (
+                                  <div
+                                    style={{
+                                      background: '#fee2e2',
+                                      color: '#b91c1c',
+                                      borderRadius: '4px',
+                                      padding: '3px 1px',
+                                      fontSize: '9.5px',
+                                      fontWeight: '700',
+                                    }}
+                                    title="Under Maintenance"
+                                  >
+                                    🛠️
+                                  </div>
+                                ) : (
+                                  <div
+                                    onClick={() => {
+                                      const nextDay = new Date(d.date);
+                                      nextDay.setDate(nextDay.getDate() + 1);
+                                      nextDay.setHours(11, 0, 0, 0);
+                                      setCheckInForm(prev => ({
+                                        ...prev,
+                                        room_id: room.id,
+                                        room_rate_per_night: room.base_price,
+                                        expected_check_out_at: nextDay.toISOString().slice(0, 16),
+                                      }));
+                                      setShowCheckInModal(true);
+                                    }}
+                                    style={{
+                                      height: '28px',
+                                      borderRadius: '4px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      cursor: 'pointer',
+                                      background: '#f0fdf4',
+                                      color: '#15803d',
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                    title={`Available for ₹${Number(room.base_price).toLocaleString('en-IN')}/night. Click to Check-In / Reserve.`}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = '#dcfce7';
+                                      e.currentTarget.innerText = '+';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = '#f0fdf4';
+                                      e.currentTarget.innerText = '✓';
+                                    }}
+                                  >
+                                    ✓
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                  </tbody>
+
+                  {/* Daily Occupancy Summary Footers */}
+                  <tfoot>
+                    <tr style={{ background: 'var(--surface-sub)', borderTop: '2px solid var(--border)' }}>
+                      <td
+                        style={{
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 20,
+                          background: 'var(--surface-sub)',
+                          padding: '10px 14px',
+                          fontWeight: '800',
+                          fontSize: '11.5px',
+                          color: 'var(--t-800)',
+                          boxShadow: '2px 0 4px rgba(0,0,0,0.04)',
+                        }}
+                      >
+                        Daily Occupancy %
+                      </td>
+                      {(calendarData?.daily_aggregates || []).map((agg) => (
+                        <td
+                          key={agg.date}
+                          style={{
+                            padding: '6px 2px',
+                            textAlign: 'center',
+                            borderLeft: '1px solid var(--border-sub)',
+                            fontSize: '10px',
+                            fontWeight: '700',
+                            color: agg.occupancy_rate > 0 ? 'var(--brand)' : 'var(--t-500)',
+                          }}
+                        >
+                          <div>{agg.occupancy_rate}%</div>
+                          <div style={{ fontSize: '9px', color: 'var(--t-400)' }}>
+                            {agg.booked_rooms}/{agg.total_rooms}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: BOOKING REGISTER & CHECKOUT HISTORY */}
       {activeSubTab === 'reservations' && (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <table className="data-table">
@@ -1652,6 +2234,252 @@ export default function FrontOfficeWorkspace() {
                 </button>
                 <button onClick={() => setInvoiceData(null)} className="btn btn-secondary btn-sm">
                   Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 6: INDIVIDUAL ROOM 1-MONTH CALENDAR & OCCUPANCY VIEW */}
+      {/* ============================================================== */}
+      {selectedRoomForModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '840px', maxHeight: '92vh', overflowY: 'auto' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', borderBottom: '1px solid var(--border-sub)', paddingBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span
+                  style={{
+                    fontSize: '18px',
+                    fontWeight: '800',
+                    color: 'var(--brand)',
+                    background: 'var(--brand-50)',
+                    border: '1px solid var(--brand-200)',
+                    padding: '4px 12px',
+                    borderRadius: 'var(--r-sm)',
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  Room {selectedRoomForModal.room_number}
+                </span>
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--t-900)' }}>
+                    {selectedRoomForModal.room_type} • 1-Month Booking Calendar
+                  </h3>
+                  <p style={{ fontSize: '12px', color: 'var(--t-500)', marginTop: '2px' }}>
+                    {selectedRoomForModal.floor} • Base Rate: <strong>₹{Number(selectedRoomForModal.base_price).toLocaleString('en-IN')}/night</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedRoomForModal(null)}
+                className="btn btn-secondary btn-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Navigation & Summary Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-sub)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '2px' }}>
+                <button
+                  onClick={() => roomModalCalendar?.prev_month && loadRoomModalCalendar(selectedRoomForModal.id, roomModalCalendar.prev_month)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ border: 'none', background: 'transparent', padding: '6px 10px' }}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <div style={{ padding: '0 14px', fontSize: '14px', fontWeight: '800', color: 'var(--t-900)', minWidth: '140px', textAlign: 'center' }}>
+                  {roomModalCalendar?.month_label || 'October 2026'}
+                </div>
+                <button
+                  onClick={() => roomModalCalendar?.next_month && loadRoomModalCalendar(selectedRoomForModal.id, roomModalCalendar.next_month)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ border: 'none', background: 'transparent', padding: '6px 10px' }}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              {/* Quick stats for this room */}
+              {roomModalCalendar?.rooms?.[0] && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', fontWeight: '600', flexWrap: 'wrap' }}>
+                  <span style={{ color: 'var(--brand)', background: 'var(--brand-50)', padding: '4px 10px', borderRadius: 'var(--r-pill)' }}>
+                    🟣 Booked: {roomModalCalendar.rooms[0].booked_days_count} Nights
+                  </span>
+                  <span style={{ color: 'var(--success)', background: 'var(--success-bg)', padding: '4px 10px', borderRadius: 'var(--r-pill)' }}>
+                    🟢 Available: {roomModalCalendar.rooms[0].available_days_count} Nights
+                  </span>
+                  <span style={{ color: 'var(--t-700)', background: 'var(--surface-sub)', padding: '4px 10px', borderRadius: 'var(--r-pill)' }}>
+                    Occupancy: {roomModalCalendar.rooms[0].occupancy_pct}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 7-Column Monthly Calendar Grid (Sun - Sat) */}
+            {roomModalLoading ? (
+              <div style={{ textAlign: 'center', padding: '60px' }}>
+                <div style={{ width: '32px', height: '32px', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+                <p style={{ color: 'var(--t-500)', fontSize: '13px' }}>Loading room monthly availability...</p>
+              </div>
+            ) : (
+              <div>
+                {/* Days of week header */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', textAlign: 'center', fontWeight: '700', fontSize: '12px', color: 'var(--t-600)', marginBottom: '8px' }}>
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    <div key={day} style={{ padding: '6px 0', background: 'var(--surface-sub)', borderRadius: 'var(--r-xs)' }}>
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Day Cells Grid */}
+                {(() => {
+                  const roomCal = roomModalCalendar?.rooms?.[0];
+                  if (!roomCal) return null;
+
+                  const firstDateStr = roomCal.days[0]?.date;
+                  const firstDayOfWeek = firstDateStr ? new Date(firstDateStr).getDay() : 0;
+                  const emptyLeadingSlots = Array.from({ length: firstDayOfWeek });
+
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
+                      {/* Leading Empty Cells */}
+                      {emptyLeadingSlots.map((_, i) => (
+                        <div key={`empty-${i}`} style={{ minHeight: '74px', background: 'transparent' }} />
+                      ))}
+
+                      {/* Actual Month Days */}
+                      {roomCal.days.map((d) => {
+                        const isBooked = d.status === 'BOOKED';
+                        const isDirty = d.status === 'DIRTY';
+
+                        return (
+                          <div
+                            key={d.date}
+                            style={{
+                              minHeight: '74px',
+                              padding: '8px',
+                              borderRadius: 'var(--r-sm)',
+                              border: d.is_today
+                                ? '2px solid var(--brand)'
+                                : isBooked
+                                ? '1px solid var(--brand-200)'
+                                : '1px solid var(--border-sub)',
+                              background: isBooked
+                                ? 'var(--brand-50)'
+                                : isDirty
+                                ? '#fef3c7'
+                                : '#f0fdf4',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              transition: 'all 0.15s ease',
+                              cursor: 'pointer',
+                            }}
+                            onClick={() => {
+                              if (isBooked && d.booking?.id) {
+                                const found = bookings.find(b => b.id === d.booking.id);
+                                if (found) {
+                                  setSelectedRoomForModal(null);
+                                  setShowFolioModal(found);
+                                } else {
+                                  frontOfficeApi.getBookingDetail(d.booking.id).then(res => {
+                                    if (res.success) {
+                                      setSelectedRoomForModal(null);
+                                      setShowFolioModal(res.booking);
+                                    }
+                                  });
+                                }
+                              } else if (!isBooked) {
+                                const nextDay = new Date(d.date);
+                                nextDay.setDate(nextDay.getDate() + 1);
+                                nextDay.setHours(11, 0, 0, 0);
+                                setCheckInForm(prev => ({
+                                  ...prev,
+                                  room_id: selectedRoomForModal.id,
+                                  room_rate_per_night: selectedRoomForModal.base_price,
+                                  expected_check_out_at: nextDay.toISOString().slice(0, 16),
+                                }));
+                                setSelectedRoomForModal(null);
+                                setShowCheckInModal(true);
+                              }
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '13px', fontWeight: '800', color: d.is_today ? 'var(--brand)' : 'var(--t-900)' }}>
+                                {d.day}
+                              </span>
+                              {d.is_today && (
+                                <span className="badge badge-brand" style={{ fontSize: '8.5px', padding: '1px 5px' }}>
+                                  TODAY
+                                </span>
+                              )}
+                            </div>
+
+                            {isBooked ? (
+                              <div style={{ marginTop: '4px' }}>
+                                <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--brand)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  👤 {d.booking?.guest_name}
+                                </div>
+                                <div style={{ fontSize: '9.5px', color: 'var(--t-500)', marginTop: '1px' }}>
+                                  {d.booking?.is_check_in_day ? 'Arrival' : d.booking?.is_check_out_day ? 'Departure' : 'Stay'}
+                                </div>
+                              </div>
+                            ) : isDirty ? (
+                              <div style={{ fontSize: '10px', color: '#b45309', fontWeight: '700', marginTop: '4px' }}>
+                                🧹 Dirty
+                              </div>
+                            ) : (
+                              <div style={{ marginTop: '4px' }}>
+                                <div style={{ fontSize: '10px', color: '#15803d', fontWeight: '700' }}>
+                                  ✓ Available
+                                </div>
+                                <div style={{ fontSize: '9.5px', color: 'var(--t-500)' }}>
+                                  ₹{selectedRoomForModal.base_price}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: '1px solid var(--border-sub)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--t-500)' }}>
+                Tip: Click on any <strong>green available date</strong> to check in guest to this room.
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => setSelectedRoomForModal(null)}
+                  className="btn btn-secondary"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setCheckInForm(prev => ({
+                      ...prev,
+                      room_id: selectedRoomForModal.id,
+                      room_rate_per_night: selectedRoomForModal.base_price,
+                    }));
+                    setSelectedRoomForModal(null);
+                    setShowCheckInModal(true);
+                  }}
+                  className="btn btn-primary"
+                >
+                  <UserCheck size={14} />
+                  <span>+ Check-In to Room {selectedRoomForModal.room_number}</span>
                 </button>
               </div>
             </div>

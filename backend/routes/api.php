@@ -40,6 +40,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('/dashboard', [FrontOfficeController::class, 'overview']);
                 Route::get('/overview', [FrontOfficeController::class, 'overview']);
                 Route::get('/rooms', [FrontOfficeController::class, 'rooms']);
+                Route::get('/rooms/calendar', [FrontOfficeController::class, 'calendar']);
                 Route::put('/rooms/{roomId}/status', [FrontOfficeController::class, 'updateRoomStatus']);
                 Route::get('/bookings', [FrontOfficeController::class, 'bookings']);
                 Route::get('/bookings/{id}', [FrontOfficeController::class, 'bookingDetail']);

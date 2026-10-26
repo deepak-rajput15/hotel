@@ -80,6 +80,10 @@ export const frontOfficeApi = {
       method: 'PUT',
       body: JSON.stringify({ status }),
     }),
+  getCalendar: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/front-office/rooms/calendar${qs ? '?' + qs : ''}`);
+  },
   getBookings: (status = 'ALL') => apiRequest(`/front-office/bookings?status=${status}`),
   getBookingDetail: (id) => apiRequest(`/front-office/bookings/${id}`),
   checkIn: (data) =>

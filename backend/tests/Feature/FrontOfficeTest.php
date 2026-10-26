@@ -171,4 +171,41 @@ class FrontOfficeTest extends TestCase
         // Room status is DIRTY for housekeeping
         $this->assertEquals('DIRTY', $booking->room->fresh()->status);
     }
+
+    public function test_can_get_1_month_room_occupancy_calendar_and_availability(): void
+    {
+        $hotel = Hotel::where('hotel_code', 'HTL-1001')->first();
+        $frontDeskStaff = User::where('email', 'frontdesk.priya@apexhospitality.com')->first();
+
+        $response = $this->actingAs($frontDeskStaff)
+            ->withHeaders(['X-Hotel-ID' => $hotel->id])
+            ->getJson('/api/v1/front-office/rooms/calendar?month=' . Carbon::now()->format('Y-m'));
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ])
+            ->assertJsonStructure([
+                'month',
+                'month_label',
+                'days_in_month',
+                'days',
+                'rooms' => [
+                    '*' => [
+                        'id',
+                        'room_number',
+                        'room_type',
+                        'base_price',
+                        'days' => [
+                            '*' => [
+                                'day',
+                                'date',
+                                'status',
+                            ],
+                        ],
+                    ],
+                ],
+                'daily_aggregates',
+            ]);
+    }
 }
