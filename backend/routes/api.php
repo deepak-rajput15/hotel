@@ -20,6 +20,28 @@ use App\Http\Controllers\Api\V1\Store\StoreInventoryController;
 
 Route::prefix('v1')->group(function () {
 
+    Route::get('/debug-db', function () {
+        try {
+            \Illuminate\Support\Facades\DB::connection()->getPdo();
+            $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+            $dbName = \Illuminate\Support\Facades\DB::connection()->getDatabaseName();
+            $usersCount = \App\Models\User::count();
+            return response()->json([
+                'status' => 'connected',
+                'driver' => $driver,
+                'database' => $dbName,
+                'users_count' => $usersCount,
+                'app_key_set' => !empty(config('app.key')),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+            ], 500);
+        }
+    });
+
     // 1. Authentication
     Route::post('/auth/login', [AuthController::class, 'login']);
 
