@@ -110,15 +110,15 @@ if [ -d "$BACKEND_DIR" ]; then
     echo "[6/6] Installing Composer production dependencies & running migrations..."
     COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
-    echo "Running database migrations..."
+    echo "Running database migrations on PostgreSQL..."
     php artisan config:clear
-    php artisan cache:clear
-    php artisan migrate --force
+    CACHE_STORE=array SESSION_DRIVER=array php artisan migrate --force
 
     echo "Seeding default data..."
     php artisan db:seed --force
 
     echo "Clearing and warming production caches..."
+    php artisan cache:clear 2>/dev/null || true
     php artisan config:cache
     php artisan route:cache
     php artisan view:cache
