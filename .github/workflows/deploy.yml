@@ -139,103 +139,18 @@ jobs:
           fi
 
       # ----------------------------------------------------------
-      # Run Laravel Post-Deployment Artisan & Composer Commands
+      # Provision PostgreSQL & Run Remote Setup Script
       # ----------------------------------------------------------
-      - name: Execute Remote Laravel Setup & Optimization
+      - name: Provision PostgreSQL & Execute Remote Laravel Setup
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
           SSH_PASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          SSH_CMD="ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST"
+          echo "Executing PostgreSQL server provisioning and post-deployment setup..."
           if [ -n "$SSH_PASS" ]; then
-            SSH_CMD="sshpass -p '$SSH_PASS' ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST"
+            SSHPASS="$SSH_PASS" sshpass -e ssh -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST 'bash -s' < scripts/install-postgres-server.sh
+          else
+            ssh -i ~/.ssh/id_rsa -p $SSH_PORT -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST 'bash -s' < scripts/install-postgres-server.sh
           fi
-
-          eval $SSH_CMD 'bash -se' << 'EOF'
-            set -e
-            export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
-            BACKEND_DIR="/home/u2tech-sasapi/htdocs/sasapi.u2tech.in"
-            cd "$BACKEND_DIR"
-
-            echo "Ensuring required directories exist..."
-            mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
-
-            # ------------------------------------------------------------------
-            # 1. Ensure PostgreSQL & PHP Extension are installed and running
-            # ------------------------------------------------------------------
-            if ! command -v psql &> /dev/null; then
-              echo "Installing PostgreSQL server and contrib packages on host..."
-              apt-get update -y
-              apt-get install -y postgresql postgresql-contrib
-              systemctl enable postgresql
-              systemctl start postgresql
-            else
-              systemctl start postgresql 2>/dev/null || true
-            fi
-
-            PHP_VER=$(php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;")
-            if ! php -m | grep -qi pdo_pgsql; then
-              echo "Installing php-pgsql extension for PHP $PHP_VER..."
-              apt-get update -y
-              apt-get install -y php-pgsql php${PHP_VER}-pgsql || true
-              systemctl restart php${PHP_VER}-fpm 2>/dev/null || systemctl restart php-fpm 2>/dev/null || true
-            fi
-
-            # ------------------------------------------------------------------
-            # 2. Configure Database 'hotel_saas' and User 'hotel_user'
-            # ------------------------------------------------------------------
-            echo "Configuring PostgreSQL database 'hotel_saas' and user 'hotel_user'..."
-            sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = 'hotel_saas'" | grep -q 1 || sudo -u postgres createdb -O postgres hotel_saas
-
-            sudo -u postgres psql << 'PGSQL_EOF'
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'hotel_user') THEN
-    CREATE USER hotel_user WITH ENCRYPTED PASSWORD 'HotelSecretPass2026!';
-  ELSE
-    ALTER USER hotel_user WITH ENCRYPTED PASSWORD 'HotelSecretPass2026!';
-  END IF;
-END
-$$;
-GRANT ALL PRIVILEGES ON DATABASE hotel_saas TO hotel_user;
-ALTER DATABASE hotel_saas OWNER TO hotel_user;
-\c hotel_saas
-GRANT ALL ON SCHEMA public TO hotel_user;
-ALTER SCHEMA public OWNER TO hotel_user;
-PGSQL_EOF
-
-            # ------------------------------------------------------------------
-            # 3. Update .env to use PostgreSQL credentials
-            # ------------------------------------------------------------------
-            if [ -f .env ]; then
-              echo "Configuring .env for PostgreSQL..."
-              sed -i "s/^DB_CONNECTION=.*/DB_CONNECTION=pgsql/" .env
-              sed -i "s/^DB_HOST=.*/DB_HOST=127.0.0.1/" .env
-              sed -i "s/^DB_PORT=.*/DB_PORT=5432/" .env
-              sed -i "s/^DB_DATABASE=.*/DB_DATABASE=hotel_saas/" .env
-              sed -i "s/^DB_USERNAME=.*/DB_USERNAME=hotel_user/" .env
-              sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=HotelSecretPass2026!/" .env
-            fi
-
-            echo "Installing composer production dependencies..."
-            COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
-
-            echo "Running database migrations..."
-            php artisan migrate --force
-
-            echo "Seeding initial master data..."
-            php artisan db:seed --force
-
-            echo "Clearing and warming production caches..."
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-
-            echo "Fixing file permissions..."
-            chmod -R 775 storage bootstrap/cache
-            chown -R u2tech-sasapi:u2tech-sasapi "$BACKEND_DIR"
-
-            echo "Deployment completed successfully! PostgreSQL is active!"
-          EOF

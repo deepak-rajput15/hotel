@@ -5,6 +5,7 @@
 # ==============================================================================
 
 set -e
+export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
 
 # Configuration
 DB_NAME="hotel_saas"
@@ -16,17 +17,22 @@ echo "================================================================="
 echo "  GrandStay SaaS: Installing & Configuring PostgreSQL on Server  "
 echo "================================================================="
 
+# Ensure sudo is available
+if ! command -v sudo &> /dev/null; then
+    apt-get update -y && apt-get install -y sudo
+fi
+
 # 1. Update APT and Install PostgreSQL
 echo "[1/6] Installing PostgreSQL & Contrib packages..."
-sudo apt update -y
-sudo apt install -y postgresql postgresql-contrib
+sudo apt-get update -y
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql postgresql-contrib
 
 # 2. Detect PHP version and install php-pgsql extension
 echo "[2/6] Detecting PHP version and installing PHP PostgreSQL extension..."
-PHP_VER=$(php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;")
+PHP_VER=$(php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;" 2>/dev/null || echo "8.2")
 echo "Detected PHP Version: $PHP_VER"
 
-sudo apt install -y php-pgsql php${PHP_VER}-pgsql || true
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y php-pgsql php${PHP_VER}-pgsql || true
 
 # Restart PHP-FPM service so web server loads pdo_pgsql
 echo "Restarting PHP-FPM service..."
@@ -74,41 +80,57 @@ EOF
 
 echo "✓ PostgreSQL Database and User configured successfully."
 
-# 5. Update Laravel .env on Server
-if [ -d "$BACKEND_DIR" ] && [ -f "$BACKEND_DIR/.env" ]; then
-    echo "[5/6] Updating Laravel .env at $BACKEND_DIR/.env..."
+# 5. Update Laravel .env on Server & Execute Post-Deploy
+if [ -d "$BACKEND_DIR" ]; then
+    cd "$BACKEND_DIR"
 
-    # Use sed to replace or insert DB settings
-    sed -i "s/^DB_CONNECTION=.*/DB_CONNECTION=pgsql/" "$BACKEND_DIR/.env"
-    sed -i "s/^DB_HOST=.*/DB_HOST=127.0.0.1/" "$BACKEND_DIR/.env"
-    sed -i "s/^DB_PORT=.*/DB_PORT=5432/" "$BACKEND_DIR/.env"
-    sed -i "s/^DB_DATABASE=.*/DB_DATABASE=${DB_NAME}/" "$BACKEND_DIR/.env"
-    sed -i "s/^DB_USERNAME=.*/DB_USERNAME=${DB_USER}/" "$BACKEND_DIR/.env"
-    sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASS}/" "$BACKEND_DIR/.env"
+    echo "Ensuring required directories exist..."
+    mkdir -p storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
+
+    if [ ! -f .env ]; then
+        echo "Creating initial .env file..."
+        if [ -f .env.production.example ]; then
+            cp .env.production.example .env
+        else
+            cp .env.example .env
+        fi
+        php artisan key:generate --force
+    fi
+
+    echo "[5/6] Updating Laravel .env at $BACKEND_DIR/.env for PostgreSQL..."
+    sed -i "s/^DB_CONNECTION=.*/DB_CONNECTION=pgsql/" .env
+    sed -i "s/^DB_HOST=.*/DB_HOST=127.0.0.1/" .env
+    sed -i "s/^DB_PORT=.*/DB_PORT=5432/" .env
+    sed -i "s/^DB_DATABASE=.*/DB_DATABASE=${DB_NAME}/" .env
+    sed -i "s/^DB_USERNAME=.*/DB_USERNAME=${DB_USER}/" .env
+    sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASS}/" .env
 
     echo "✓ .env file updated with PostgreSQL credentials."
 
-    # 6. Run Migrations & Seeders
-    echo "[6/6] Running Artisan migrations and seeders on PostgreSQL..."
-    cd "$BACKEND_DIR"
+    echo "[6/6] Installing Composer production dependencies & running migrations..."
+    COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+
+    echo "Running database migrations..."
     php artisan config:clear
     php artisan cache:clear
     php artisan migrate --force
+
+    echo "Seeding default data..."
     php artisan db:seed --force
+
+    echo "Clearing and warming production caches..."
     php artisan config:cache
     php artisan route:cache
+    php artisan view:cache
+
+    echo "Fixing file permissions..."
+    chmod -R 775 storage bootstrap/cache
+    chown -R u2tech-sasapi:u2tech-sasapi "$BACKEND_DIR"
 
     echo "================================================================="
     echo "  🎉 SUCCESS: PostgreSQL is live and connected on server!       "
     echo "  Database: ${DB_NAME} | User: ${DB_USER}                        "
     echo "================================================================="
 else
-    echo "[5/6] Notice: Backend directory $BACKEND_DIR/.env not found."
-    echo "Please manually update your .env with:"
-    echo "  DB_CONNECTION=pgsql"
-    echo "  DB_HOST=127.0.0.1"
-    echo "  DB_PORT=5432"
-    echo "  DB_DATABASE=${DB_NAME}"
-    echo "  DB_USERNAME=${DB_USER}"
-    echo "  DB_PASSWORD=${DB_PASS}"
+    echo "Notice: Backend directory $BACKEND_DIR not found."
 fi
