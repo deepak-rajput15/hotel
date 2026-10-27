@@ -27,16 +27,21 @@ echo "[1/6] Installing PostgreSQL & Contrib packages..."
 sudo apt-get update -y
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql postgresql-contrib
 
-# 2. Detect PHP version and install php-pgsql extension
-echo "[2/6] Detecting PHP version and installing PHP PostgreSQL extension..."
-PHP_VER=$(php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;" 2>/dev/null || echo "8.2")
-echo "Detected PHP Version: $PHP_VER"
+# 2. Install php-pgsql extension for all CloudPanel PHP versions
+echo "[2/6] Installing PHP PostgreSQL extension for all PHP versions..."
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    php-pgsql \
+    php8.1-pgsql \
+    php8.2-pgsql \
+    php8.3-pgsql \
+    php8.4-pgsql || true
 
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y php-pgsql php${PHP_VER}-pgsql || true
-
-# Restart PHP-FPM service so web server loads pdo_pgsql
-echo "Restarting PHP-FPM service..."
-sudo systemctl restart php${PHP_VER}-fpm 2>/dev/null || sudo systemctl restart php-fpm 2>/dev/null || true
+# Restart all possible PHP-FPM services and reload Nginx
+echo "Restarting PHP-FPM services and reloading web server..."
+for svc in php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm php-fpm; do
+    sudo systemctl restart "$svc" 2>/dev/null || true
+done
+sudo systemctl reload nginx 2>/dev/null || true
 
 # 3. Enable and Start PostgreSQL service
 echo "[3/6] Starting PostgreSQL service..."

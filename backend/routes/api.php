@@ -38,6 +38,8 @@ Route::prefix('v1')->group(function () {
                 'status' => 'error',
                 'message' => $e->getMessage(),
                 'file' => $e->getFile() . ':' . $e->getLine(),
+                'web_php_version' => phpversion(),
+                'pdo_drivers' => \PDO::getAvailableDrivers(),
             ], 500);
         }
     });
