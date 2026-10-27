@@ -27,18 +27,19 @@ echo "[1/6] Installing PostgreSQL & Contrib packages..."
 sudo apt-get update -y
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql postgresql-contrib
 
-# 2. Install php-pgsql extension for all CloudPanel PHP versions
+# 2. Install php-pgsql extension for all CloudPanel PHP versions (including 8.5)
 echo "[2/6] Installing PHP PostgreSQL extension for all PHP versions..."
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
     php-pgsql \
     php8.1-pgsql \
     php8.2-pgsql \
     php8.3-pgsql \
-    php8.4-pgsql || true
+    php8.4-pgsql \
+    php8.5-pgsql || true
 
 # Restart all possible PHP-FPM services and reload Nginx
 echo "Restarting PHP-FPM services and reloading web server..."
-for svc in php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm php-fpm; do
+for svc in php8.1-fpm php8.2-fpm php8.3-fpm php8.4-fpm php8.5-fpm php-fpm; do
     sudo systemctl restart "$svc" 2>/dev/null || true
 done
 sudo systemctl reload nginx 2>/dev/null || true
