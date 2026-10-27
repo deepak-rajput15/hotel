@@ -41,8 +41,23 @@ import {
   Key,
 } from 'lucide-react';
 
+const formatDateTimeLocal = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 export default function FrontOfficeWorkspace() {
-  const { currentHotel } = useAuth();
+  const { currentHotel, user } = useAuth();
+
+  const canManageRooms = Boolean(
+    user?.is_org_owner ||
+    user?.is_platform_admin ||
+    user?.assigned_role?.slug === 'general-manager' ||
+    user?.assigned_role?.slug === 'hotel-owner'
+  );
 
   const [activeSubTab, setActiveSubTab] = useState('in_house'); // in_house, rack, calendar, reservations
   const [loading, setLoading] = useState(true);
@@ -91,6 +106,7 @@ export default function FrontOfficeWorkspace() {
     state: '',
     purpose_of_visit: 'Business / Leisure',
     room_id: '',
+    check_in_at: '',
     expected_check_out_at: '',
     num_adults: 1,
     num_children: 0,
@@ -130,7 +146,63 @@ export default function FrontOfficeWorkspace() {
   const [actionError, setActionError] = useState('');
   const [successToast, setSuccessToast] = useState('');
 
+  // Room Creation Form State (From Book1.xlsx specification)
+  const [showAddRoomModal, setShowAddRoomModal] = useState(false);
+  const [roomForm, setRoomForm] = useState({
+    room_number: '',
+    room_type: 'Deluxe',
+    room_mode: 'AC',
+    floor: '1st Floor',
+    base_price: '2800',
+    extra_bedding_price: '500',
+    gst_percentage: '12.00',
+    status: 'AVAILABLE',
+    max_guests: '2',
+    remarks: '',
+  });
+  const [savingRoom, setSavingRoom] = useState(false);
+  const [roomError, setRoomError] = useState('');
+
+  const handleCreateRoom = async (e) => {
+    e.preventDefault();
+    setSavingRoom(true);
+    setRoomError('');
+
+    try {
+      const res = await frontOfficeApi.createRoom({
+        ...roomForm,
+        base_price: parseFloat(roomForm.base_price),
+        extra_bedding_price: parseFloat(roomForm.extra_bedding_price || 0),
+        gst_percentage: parseFloat(roomForm.gst_percentage || 12),
+        max_guests: parseInt(roomForm.max_guests || 2, 10),
+      });
+
+      if (res.success) {
+        setShowAddRoomModal(false);
+        setSuccessToast(`Room ${roomForm.room_number} added successfully!`);
+        setRoomForm({
+          room_number: '',
+          room_type: 'Deluxe',
+          room_mode: 'AC',
+          floor: '1st Floor',
+          base_price: '2800',
+          extra_bedding_price: '500',
+          gst_percentage: '12.00',
+          status: 'AVAILABLE',
+          max_guests: '2',
+          remarks: '',
+        });
+        loadFrontOfficeData();
+      }
+    } catch (err) {
+      setRoomError(err.data?.message || err.message || 'Failed to create room');
+    } finally {
+      setSavingRoom(false);
+    }
+  };
+
   const handleQuickAutoFill = () => {
+    const now = new Date();
     const checkOut = new Date();
     checkOut.setDate(checkOut.getDate() + 2);
     checkOut.setHours(11, 0, 0, 0);
@@ -151,7 +223,8 @@ export default function FrontOfficeWorkspace() {
       state: 'Maharashtra',
       purpose_of_visit: 'Corporate Business / Tech Conference',
       room_id: availRoom ? availRoom.id : '',
-      expected_check_out_at: checkOut.toISOString().slice(0, 16),
+      check_in_at: formatDateTimeLocal(now),
+      expected_check_out_at: formatDateTimeLocal(checkOut),
       num_adults: 2,
       num_children: 0,
       special_requests: 'High floor, quiet corner room, extra pillows',
@@ -272,6 +345,7 @@ export default function FrontOfficeWorkspace() {
           state: '',
           purpose_of_visit: 'Business / Leisure',
           room_id: '',
+          check_in_at: '',
           expected_check_out_at: '',
           num_adults: 1,
           num_children: 0,
@@ -440,14 +514,14 @@ export default function FrontOfficeWorkspace() {
           <button
             onClick={() => {
               setActionError('');
-              // Set default expected checkout to tomorrow 11 AM
+              const now = new Date();
               const tomorrow = new Date();
               tomorrow.setDate(tomorrow.getDate() + 1);
               tomorrow.setHours(11, 0, 0, 0);
-              const formattedDate = tomorrow.toISOString().slice(0, 16);
               setCheckInForm(prev => ({
                 ...prev,
-                expected_check_out_at: formattedDate,
+                check_in_at: formatDateTimeLocal(now),
+                expected_check_out_at: formatDateTimeLocal(tomorrow),
                 room_id: availableRoomsList[0]?.id || '',
               }));
               setShowCheckInModal(true);
@@ -458,6 +532,20 @@ export default function FrontOfficeWorkspace() {
             <Plus size={16} />
             <span>+ New Guest Walk-In / Check-In</span>
           </button>
+
+          {canManageRooms && (
+            <button
+              onClick={() => {
+                setRoomError('');
+                setShowAddRoomModal(true);
+              }}
+              className="btn btn-secondary"
+              style={{ fontWeight: '700' }}
+            >
+              <Bed size={15} />
+              <span>+ Add Room</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -729,8 +817,9 @@ export default function FrontOfficeWorkspace() {
           </div>
 
           {/* In-House Guests Table */}
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <table className="data-table">
+          <div className="card" style={{ padding: 0, overflow: 'hidden', width: '100%', maxWidth: '100%' }}>
+            <div style={{ overflowX: 'auto', width: '100%' }}>
+              <table className="data-table">
               <thead>
                 <tr>
                   <th style={{ width: '90px' }}>Room</th>
@@ -861,6 +950,7 @@ export default function FrontOfficeWorkspace() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}
@@ -889,9 +979,23 @@ export default function FrontOfficeWorkspace() {
               </div>
             </div>
 
-            <span style={{ fontSize: '12px', color: 'var(--t-500)' }}>
-              Click any room card to change housekeeping status or assign guest.
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--t-500)' }}>
+                Click any room card to change housekeeping status or assign guest.
+              </span>
+              {canManageRooms && (
+                <button
+                  onClick={() => {
+                    setRoomError('');
+                    setShowAddRoomModal(true);
+                  }}
+                  className="btn btn-primary btn-sm"
+                >
+                  <Plus size={14} />
+                  <span>+ Add Room</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Visual Grid */}
@@ -929,12 +1033,37 @@ export default function FrontOfficeWorkspace() {
                     </span>
                   </div>
 
-                  <div style={{ fontSize: '12.5px', color: 'var(--t-700)', fontWeight: '600' }}>
-                    {room.room_type}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '12.5px', color: 'var(--t-700)', fontWeight: '600' }}>
+                      {room.room_type}
+                    </span>
+                    <span className="badge badge-brand" style={{ fontSize: '10px' }}>
+                      {room.room_mode || 'AC'}
+                    </span>
                   </div>
                   <div style={{ fontSize: '11.5px', color: 'var(--t-500)', marginTop: '2px' }}>
-                    {room.floor} &bull; Base Tariff: <strong>₹{Number(room.base_price).toLocaleString('en-IN')}/night</strong>
+                    {room.floor} &bull; Tariff: <strong>₹{Number(room.base_price).toLocaleString('en-IN')}/night</strong>
                   </div>
+
+                  {/* Specification details from Book1.xlsx */}
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    <span className="badge badge-inactive" style={{ fontSize: '10px' }}>
+                      Cap: {room.max_guests || 2} Pax
+                    </span>
+                    {Number(room.extra_bedding_price) > 0 && (
+                      <span className="badge badge-inactive" style={{ fontSize: '10px' }}>
+                        Extra Bed: ₹{Number(room.extra_bedding_price)}
+                      </span>
+                    )}
+                    <span className="badge badge-inactive" style={{ fontSize: '10px' }}>
+                      GST: {Number(room.gst_percentage || 12)}%
+                    </span>
+                  </div>
+                  {room.remarks && (
+                    <div style={{ fontSize: '11px', color: 'var(--t-500)', fontStyle: 'italic', marginTop: '4px' }}>
+                      Note: {room.remarks}
+                    </div>
+                  )}
 
                   {/* If occupied, show in-house guest snapshot */}
                   {isOccupied && room.current_guest && (
@@ -995,10 +1124,16 @@ export default function FrontOfficeWorkspace() {
                     {isAvailable && (
                       <button
                         onClick={() => {
+                          const now = new Date();
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          tomorrow.setHours(11, 0, 0, 0);
                           setCheckInForm(prev => ({
                             ...prev,
                             room_id: room.id,
                             room_rate_per_night: room.base_price,
+                            check_in_at: formatDateTimeLocal(now),
+                            expected_check_out_at: formatDateTimeLocal(tomorrow),
                           }));
                           setShowCheckInModal(true);
                         }}
@@ -1128,14 +1263,14 @@ export default function FrontOfficeWorkspace() {
           </div>
 
           {/* Calendar Grid Table */}
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="card" style={{ padding: 0, overflow: 'hidden', width: '100%', maxWidth: '100%' }}>
             {calendarLoading ? (
               <div style={{ textAlign: 'center', padding: '60px' }}>
                 <div style={{ width: '36px', height: '36px', border: '3px solid var(--border)', borderTopColor: 'var(--brand)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
                 <p style={{ color: 'var(--t-500)', fontSize: '13px' }}>Loading Next 30 Days Room Tape Chart...</p>
               </div>
             ) : (
-              <div style={{ overflowX: 'auto', maxHeight: '650px' }}>
+              <div style={{ overflowX: 'auto', maxHeight: '650px', width: '100%', maxWidth: '100%' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead>
                     <tr style={{ background: 'var(--surface-sub)', borderBottom: '2px solid var(--border)' }}>
@@ -1333,14 +1468,16 @@ export default function FrontOfficeWorkspace() {
                                 ) : (
                                   <div
                                     onClick={() => {
-                                      const nextDay = new Date(d.date);
+                                      const checkInDate = new Date(d.date + 'T12:00:00');
+                                      const nextDay = new Date(d.date + 'T12:00:00');
                                       nextDay.setDate(nextDay.getDate() + 1);
                                       nextDay.setHours(11, 0, 0, 0);
                                       setCheckInForm(prev => ({
                                         ...prev,
                                         room_id: room.id,
                                         room_rate_per_night: room.base_price,
-                                        expected_check_out_at: nextDay.toISOString().slice(0, 16),
+                                        check_in_at: formatDateTimeLocal(checkInDate),
+                                        expected_check_out_at: formatDateTimeLocal(nextDay),
                                       }));
                                       setShowCheckInModal(true);
                                     }}
@@ -1424,59 +1561,61 @@ export default function FrontOfficeWorkspace() {
 
       {/* TAB 4: BOOKING REGISTER & CHECKOUT HISTORY */}
       {activeSubTab === 'reservations' && (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Booking #</th>
-                <th>Guest Name</th>
-                <th>Room</th>
-                <th>Check-In</th>
-                <th>Check-Out</th>
-                <th>Total Bill</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bookings.map((b) => (
-                <tr key={b.id}>
-                  <td>
-                    <span className="badge badge-brand" style={{ fontFamily: 'monospace' }}>
-                      {b.booking_number}
-                    </span>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: '700', color: 'var(--t-900)' }}>
-                      {b.guest?.first_name} {b.guest?.last_name}
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--t-500)' }}>{b.guest?.phone}</div>
-                  </td>
-                  <td>
-                    <strong>Room {b.room?.room_number}</strong>
-                    <div style={{ fontSize: '11px', color: 'var(--t-500)' }}>{b.room?.room_type}</div>
-                  </td>
-                  <td>{new Date(b.check_in_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                  <td>
-                    {b.check_out_at
-                      ? new Date(b.check_out_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                      : new Date(b.expected_check_out_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </td>
-                  <td>
-                    <strong>₹ {Number(b.grand_total).toLocaleString('en-IN')}</strong>
-                  </td>
-                  <td>
-                    <span
-                      className={`badge ${
-                        b.status === 'CHECKED_IN' ? 'badge-success' : b.status === 'CHECKED_OUT' ? 'badge-inactive' : 'badge-brand'
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                  </td>
+        <div className="card" style={{ padding: 0, overflow: 'hidden', width: '100%', maxWidth: '100%' }}>
+          <div style={{ overflowX: 'auto', width: '100%' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Booking #</th>
+                  <th>Guest Name</th>
+                  <th>Room</th>
+                  <th>Check-In</th>
+                  <th>Check-Out</th>
+                  <th>Total Bill</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {bookings.map((b) => (
+                  <tr key={b.id}>
+                    <td>
+                      <span className="badge badge-brand" style={{ fontFamily: 'monospace' }}>
+                        {b.booking_number}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: '700', color: 'var(--t-900)' }}>
+                        {b.guest?.first_name} {b.guest?.last_name}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: 'var(--t-500)' }}>{b.guest?.phone}</div>
+                    </td>
+                    <td>
+                      <strong>Room {b.room?.room_number}</strong>
+                      <div style={{ fontSize: '11px', color: 'var(--t-500)' }}>{b.room?.room_type}</div>
+                    </td>
+                    <td>{new Date(b.check_in_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    <td>
+                      {b.check_out_at
+                        ? new Date(b.check_out_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : new Date(b.expected_check_out_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td>
+                      <strong>₹ {Number(b.grand_total).toLocaleString('en-IN')}</strong>
+                    </td>
+                    <td>
+                      <span
+                        className={`badge ${
+                          b.status === 'CHECKED_IN' ? 'badge-success' : b.status === 'CHECKED_OUT' ? 'badge-inactive' : 'badge-brand'
+                        }`}
+                      >
+                        {b.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1485,10 +1624,12 @@ export default function FrontOfficeWorkspace() {
       {/* ============================================================== */}
       {showCheckInModal && (() => {
         const selectedRoomObj = rooms.find(r => r.id === checkInForm.room_id);
+        const checkInDateVal = checkInForm.check_in_at ? new Date(checkInForm.check_in_at) : new Date();
         const checkOutDateVal = checkInForm.expected_check_out_at ? new Date(checkInForm.expected_check_out_at) : null;
-        const stayNightsCount = checkOutDateVal && !isNaN(checkOutDateVal.getTime())
-          ? Math.max(1, Math.ceil((checkOutDateVal.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+        const stayNightsCount = (checkInDateVal && checkOutDateVal && !isNaN(checkInDateVal.getTime()) && !isNaN(checkOutDateVal.getTime()))
+          ? Math.max(1, Math.round((new Date(checkOutDateVal.toDateString()).getTime() - new Date(checkInDateVal.toDateString()).getTime()) / (1000 * 60 * 60 * 24)))
           : 1;
+        const isFutureBooking = Boolean(checkInDateVal && (checkInDateVal.getTime() - Date.now() > 6 * 60 * 60 * 1000));
         const nightlyRate = Number(checkInForm.room_rate_per_night || selectedRoomObj?.base_price || 0);
         const estimatedRoomTotal = nightlyRate * stayNightsCount;
         const advanceDepositVal = Number(checkInForm.advance_deposit_amount || 0);
@@ -1506,28 +1647,34 @@ export default function FrontOfficeWorkspace() {
                       width: '46px',
                       height: '46px',
                       borderRadius: '12px',
-                      background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                      background: isFutureBooking
+                        ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
+                        : 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: '#ffffff',
-                      boxShadow: '0 6px 16px rgba(99, 102, 241, 0.3)',
+                      boxShadow: isFutureBooking
+                        ? '0 6px 16px rgba(2, 132, 199, 0.3)'
+                        : '0 6px 16px rgba(99, 102, 241, 0.3)',
                       flexShrink: 0
                     }}
                   >
-                    <UserCheck size={24} />
+                    {isFutureBooking ? <Calendar size={24} /> : <UserCheck size={24} />}
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--t-900)', letterSpacing: '-0.02em', margin: 0 }}>
-                        Guest Registration & Check-In Wizard
+                        {isFutureBooking ? 'Advance Room Reservation Wizard' : 'Guest Registration & Check-In Wizard'}
                       </h3>
                       <span className="badge badge-brand" style={{ fontSize: '11px', padding: '2px 8px' }}>
-                        Express PMS
+                        {isFutureBooking ? '🗓️ Advance Reservation' : '⚡ Express Walk-In'}
                       </span>
                     </div>
                     <p style={{ fontSize: '12.5px', color: 'var(--t-500)', marginTop: '2px' }}>
-                      Mandatory Police Form-C KYC Verification & Real-Time Room Key Allocation
+                      {isFutureBooking
+                        ? 'Advance booking & room allocation reserved for scheduled stay dates'
+                        : 'Mandatory Police Form-C KYC Verification & Real-Time Room Key Allocation'}
                     </p>
                   </div>
                 </div>
@@ -1846,45 +1993,97 @@ export default function FrontOfficeWorkspace() {
                       <span className="wizard-section-badge">3</span>
                       <span>Room Assignment & Stay Duration</span>
                     </div>
-                    {availableRoomsList.length > 0 ? (
+                    {isFutureBooking ? (
+                      <span className="badge badge-brand" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Calendar size={12} />
+                        <span>Advance Reservation for Future Stay</span>
+                      </span>
+                    ) : availableRoomsList.length > 0 ? (
                       <span className="badge badge-success">{availableRoomsList.length} Rooms Ready for Check-In</span>
                     ) : (
-                      <span className="badge badge-error">No Clean Rooms Available</span>
+                      <span className="badge badge-error">No Clean Rooms Available Today</span>
                     )}
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                  {/* Room Selection */}
+                  <div className="form-group" style={{ marginBottom: '14px' }}>
+                    <label className="form-label">
+                      <Bed size={13} color="var(--brand)" />
+                      <span>{isFutureBooking ? 'Select Room to Reserve *' : 'Select Available Clean Room *'}</span>
+                    </label>
+                    <select
+                      className="form-select"
+                      required
+                      value={checkInForm.room_id}
+                      onChange={(e) => {
+                        const sel = rooms.find(r => r.id === e.target.value);
+                        setCheckInForm({
+                          ...checkInForm,
+                          room_id: e.target.value,
+                          room_rate_per_night: sel?.base_price || '',
+                        });
+                      }}
+                    >
+                      <option value="">-- Choose a Room --</option>
+                      {rooms.map((r) => {
+                        const isAvail = r.status === 'AVAILABLE';
+                        return (
+                          <option key={r.id} value={r.id}>
+                            Room {r.room_number} • {r.room_type} ({r.floor}) • ₹{Number(r.base_price).toLocaleString('en-IN')}/night {isAvail ? '• Ready & Clean' : `• (${r.status})`}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* Check-In and Check-Out Dates (Side by Side) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">
-                        <Bed size={13} color="var(--brand)" />
-                        <span>Select Available Clean Room *</span>
+                      <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Calendar size={13} color="var(--brand)" />
+                          <span>Check-In Date & Time *</span>
+                        </span>
+                        {isFutureBooking ? (
+                          <span style={{ fontSize: '10.5px', color: 'var(--brand)', fontWeight: '700' }}>Future Stay</span>
+                        ) : (
+                          <span style={{ fontSize: '10.5px', color: 'var(--success)', fontWeight: '700' }}>Immediate Walk-In</span>
+                        )}
                       </label>
-                      <select
-                        className="form-select"
+                      <input
+                        type="datetime-local"
                         required
-                        value={checkInForm.room_id}
+                        className="form-control"
+                        value={checkInForm.check_in_at}
                         onChange={(e) => {
-                          const sel = rooms.find(r => r.id === e.target.value);
-                          setCheckInForm({
-                            ...checkInForm,
-                            room_id: e.target.value,
-                            room_rate_per_night: sel?.base_price || '',
+                          const newCheckIn = e.target.value;
+                          setCheckInForm(prev => {
+                            let updatedCheckOut = prev.expected_check_out_at;
+                            if (newCheckIn && (!updatedCheckOut || new Date(updatedCheckOut) <= new Date(newCheckIn))) {
+                              const nextDay = new Date(newCheckIn);
+                              nextDay.setDate(nextDay.getDate() + 1);
+                              nextDay.setHours(11, 0, 0, 0);
+                              updatedCheckOut = formatDateTimeLocal(nextDay);
+                            }
+                            return {
+                              ...prev,
+                              check_in_at: newCheckIn,
+                              expected_check_out_at: updatedCheckOut,
+                            };
                           });
                         }}
-                      >
-                        <option value="">-- Choose an Available Room --</option>
-                        {availableRoomsList.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            Room {r.room_number} • {r.room_type} ({r.floor}) • ₹{Number(r.base_price).toLocaleString('en-IN')}/night
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">
-                        <Clock size={13} color="var(--brand)" />
-                        <span>Expected Check-Out Date & Time *</span>
+                      <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Clock size={13} color="var(--brand)" />
+                          <span>Expected Check-Out Date & Time *</span>
+                        </span>
+                        <span style={{ fontSize: '10.5px', color: 'var(--brand)', fontWeight: '700' }}>
+                          {stayNightsCount} {stayNightsCount === 1 ? 'Night' : 'Nights'}
+                        </span>
                       </label>
                       <input
                         type="datetime-local"
@@ -2028,6 +2227,13 @@ export default function FrontOfficeWorkspace() {
                       </div>
                     </div>
                   )}
+
+                  {isFutureBooking && (
+                    <div style={{ marginTop: '12px', padding: '10px 14px', background: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe', fontSize: '12px', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Calendar size={15} />
+                      <span><strong>Advance Reservation Note:</strong> This booking is scheduled for a future date. The room will remain operational and available for in-house guests until the scheduled arrival date.</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* MODAL ACTION BAR */}
@@ -2045,7 +2251,7 @@ export default function FrontOfficeWorkspace() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--t-600)' }}>
                     <ShieldCheck size={16} color="var(--success)" />
-                    <span>Instant Guest Folio Account & Digital Key Card Generated</span>
+                    <span>{isFutureBooking ? 'Advance Reservation Confirmed with Booking Folio' : 'Instant Guest Folio Account & Digital Key Card Generated'}</span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -2069,12 +2275,16 @@ export default function FrontOfficeWorkspace() {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
-                        background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
-                        boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+                        background: isFutureBooking
+                          ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
+                          : 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
+                        boxShadow: isFutureBooking
+                          ? '0 4px 14px rgba(2, 132, 199, 0.4)'
+                          : '0 4px 14px rgba(99, 102, 241, 0.4)',
                       }}
                     >
                       <CheckCircle2 size={16} />
-                      <span>{submitting ? 'Verifying & Registering...' : 'Complete Check-In & Allocate Room'}</span>
+                      <span>{submitting ? 'Verifying & Saving...' : isFutureBooking ? 'Confirm Advance Reservation' : 'Complete Check-In & Allocate Room'}</span>
                     </button>
                   </div>
                 </div>
@@ -2759,14 +2969,16 @@ export default function FrontOfficeWorkspace() {
                                   });
                                 }
                               } else if (!isBooked) {
-                                const nextDay = new Date(d.date);
+                                const checkInDate = new Date(d.date + 'T12:00:00');
+                                const nextDay = new Date(d.date + 'T12:00:00');
                                 nextDay.setDate(nextDay.getDate() + 1);
                                 nextDay.setHours(11, 0, 0, 0);
                                 setCheckInForm(prev => ({
                                   ...prev,
                                   room_id: selectedRoomForModal.id,
                                   room_rate_per_night: selectedRoomForModal.base_price,
-                                  expected_check_out_at: nextDay.toISOString().slice(0, 16),
+                                  check_in_at: formatDateTimeLocal(checkInDate),
+                                  expected_check_out_at: formatDateTimeLocal(nextDay),
                                 }));
                                 setSelectedRoomForModal(null);
                                 setShowCheckInModal(true);
@@ -2846,6 +3058,194 @@ export default function FrontOfficeWorkspace() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD ROOM (From Book1.xlsx specification) */}
+      {canManageRooms && showAddRoomModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '580px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--t-900)' }}>
+                  Add New Room to Hotel Rack
+                </h3>
+                <p style={{ fontSize: '12.5px', color: 'var(--t-500)' }}>
+                  Specification fields from Book1.xlsx (Rooms Table)
+                </p>
+              </div>
+              <button onClick={() => setShowAddRoomModal(false)} className="btn btn-secondary btn-sm" style={{ padding: '4px 8px' }}>
+                ✕
+              </button>
+            </div>
+
+            {roomError && (
+              <div style={{ padding: '10px 14px', borderRadius: 'var(--r-sm)', background: 'var(--error-bg)', color: 'var(--error)', border: '1px solid var(--error-border)', marginBottom: '16px', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={15} />
+                <span>{roomError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateRoom}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Room Number * (RoomNo)</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. 105, 201"
+                    value={roomForm.room_number}
+                    onChange={(e) => setRoomForm({ ...roomForm, room_number: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Room Type * (RoomType)</label>
+                  <select
+                    className="form-select"
+                    value={roomForm.room_type}
+                    onChange={(e) => setRoomForm({ ...roomForm, room_type: e.target.value })}
+                    required
+                  >
+                    <option value="Single">Single</option>
+                    <option value="Double">Double</option>
+                    <option value="Deluxe">Deluxe</option>
+                    <option value="Semi Deluxe">Semi Deluxe</option>
+                    <option value="Suite">Suite</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Room Mode *</label>
+                  <select
+                    className="form-select"
+                    value={roomForm.room_mode}
+                    onChange={(e) => setRoomForm({ ...roomForm, room_mode: e.target.value })}
+                    required
+                  >
+                    <option value="AC">AC</option>
+                    <option value="Non AC">Non AC</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Floor No. *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. 1st Floor"
+                    value={roomForm.floor}
+                    onChange={(e) => setRoomForm({ ...roomForm, floor: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Room Capacity (Guests)</label>
+                  <select
+                    className="form-select"
+                    value={roomForm.max_guests}
+                    onChange={(e) => setRoomForm({ ...roomForm, max_guests: e.target.value })}
+                  >
+                    <option value="1">1 Person</option>
+                    <option value="2">2 Persons</option>
+                    <option value="3">3 Persons</option>
+                    <option value="4">4 Persons</option>
+                    <option value="6">6 Persons</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Price / Day (Tariff ₹) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="form-control"
+                    placeholder="2800"
+                    value={roomForm.base_price}
+                    onChange={(e) => setRoomForm({ ...roomForm, base_price: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Extra Bedding (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="form-control"
+                    placeholder="500"
+                    value={roomForm.extra_bedding_price}
+                    onChange={(e) => setRoomForm({ ...roomForm, extra_bedding_price: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">GST %</label>
+                  <select
+                    className="form-select"
+                    value={roomForm.gst_percentage}
+                    onChange={(e) => setRoomForm({ ...roomForm, gst_percentage: e.target.value })}
+                  >
+                    <option value="0.00">0% (Below ₹1,000)</option>
+                    <option value="12.00">12% (Standard)</option>
+                    <option value="18.00">18% (Luxury / Suite)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Room Status *</label>
+                  <select
+                    className="form-select"
+                    value={roomForm.status}
+                    onChange={(e) => setRoomForm({ ...roomForm, status: e.target.value })}
+                    required
+                  >
+                    <option value="AVAILABLE">Available (Clean & Ready)</option>
+                    <option value="OCCUPIED">Occupied</option>
+                    <option value="DIRTY">Cleaning / Housekeeping Required</option>
+                    <option value="MAINTENANCE">Under Maintenance</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Remarks / Features</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. King bed with balcony view"
+                    value={roomForm.remarks}
+                    onChange={(e) => setRoomForm({ ...roomForm, remarks: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddRoomModal(false)}
+                  className="btn btn-secondary"
+                  disabled={savingRoom}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={savingRoom}
+                >
+                  {savingRoom ? 'Adding Room...' : '+ Create & Add Room'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

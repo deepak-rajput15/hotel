@@ -223,4 +223,82 @@ class FrontOfficeTest extends TestCase
         $this->assertEquals(30, count($defaultResponse->json('days')));
         $this->assertTrue($defaultResponse->json('days.0.is_today'));
     }
+
+    public function test_future_date_advance_reservation_creates_reserved_booking_and_keeps_room_available(): void
+    {
+        $hotel = Hotel::where('hotel_code', 'HTL-1001')->first();
+        $frontDeskStaff = User::where('email', 'frontdesk.priya@apexhospitality.com')->first();
+        $room = $hotel->rooms()->where('status', 'AVAILABLE')->first();
+
+        $futureCheckIn = Carbon::today()->addDays(10)->setTime(14, 0, 0);
+        $futureCheckOut = Carbon::today()->addDays(13)->setTime(11, 0, 0);
+
+        $response = $this->actingAs($frontDeskStaff)
+            ->withHeaders(['X-Hotel-ID' => $hotel->id])
+            ->postJson('/api/v1/front-office/check-in', [
+                'first_name' => 'Vikram',
+                'last_name' => 'Mehta',
+                'phone' => '+91 99887 76655',
+                'nationality' => 'Indian',
+                'id_type' => 'AADHAAR',
+                'id_number' => '9988-7766-5544',
+                'room_id' => $room->id,
+                'check_in_at' => $futureCheckIn->toDateTimeString(),
+                'expected_check_out_at' => $futureCheckOut->toDateTimeString(),
+                'room_rate_per_night' => (float) $room->base_price,
+                'advance_deposit_amount' => 1500.00,
+                'payment_method' => 'UPI_QR',
+                'transaction_reference' => 'UPI-ADV-9988',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+                'booking' => [
+                    'status' => 'RESERVED',
+                    'total_nights' => 3,
+                ],
+            ]);
+
+        // Room status must remain AVAILABLE today (not OCCUPIED)
+        $this->assertEquals('AVAILABLE', $room->fresh()->status);
+
+        // Advance payment was recorded
+        $bookingId = $response->json('booking.id');
+        $this->assertDatabaseHas('payments', [
+            'booking_id' => $bookingId,
+            'amount' => 1500.00,
+        ]);
+
+        // Folio item has 3 nights tariff
+        $this->assertDatabaseHas('folio_items', [
+            'booking_id' => $bookingId,
+            'quantity' => 3,
+            'item_type' => 'ROOM_CHARGE',
+        ]);
+
+        // Overlapping reservation for the same room must be rejected
+        $overlappingCheckIn = Carbon::today()->addDays(11)->setTime(12, 0, 0);
+        $overlappingCheckOut = Carbon::today()->addDays(14)->setTime(11, 0, 0);
+
+        $conflictResponse = $this->actingAs($frontDeskStaff)
+            ->withHeaders(['X-Hotel-ID' => $hotel->id])
+            ->postJson('/api/v1/front-office/check-in', [
+                'first_name' => 'Amit',
+                'last_name' => 'Verma',
+                'phone' => '+91 91234 56789',
+                'nationality' => 'Indian',
+                'id_type' => 'AADHAAR',
+                'id_number' => '1122-3344-5566',
+                'room_id' => $room->id,
+                'check_in_at' => $overlappingCheckIn->toDateTimeString(),
+                'expected_check_out_at' => $overlappingCheckOut->toDateTimeString(),
+            ]);
+
+        $conflictResponse->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+            ]);
+        $this->assertStringContainsString('already booked', $conflictResponse->json('message'));
+    }
 }

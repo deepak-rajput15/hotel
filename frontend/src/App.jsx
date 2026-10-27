@@ -24,6 +24,8 @@ function AppContent() {
           setCurrentTab('restaurant');
         } else if (user.assigned_role.slug === 'storekeeper') {
           setCurrentTab('store');
+        } else if (user.assigned_role.slug === 'general-manager') {
+          setCurrentTab('dashboard');
         }
       } else if (currentHotel?.id === 'ALL') {
         setCurrentTab('portfolio_overview');
@@ -35,17 +37,23 @@ function AppContent() {
     }
   }, [user?.id, currentHotel?.id]);
 
-  // Route protection: Staff should never access owner tabs
+  // Route protection: Subadmin (general-manager) cannot view multi-hotel group portfolio; role-restricted staff cannot view owner tabs
   React.useEffect(() => {
-    if (isStaff && ['dashboard', 'portfolio_overview', 'staff', 'overview'].includes(currentTab)) {
-      const roleAllowed = {
-        'head-chef': 'kitchen',
-        'front-desk': 'front_office',
-        'restaurant-cashier': 'restaurant',
-        'storekeeper': 'store',
-      };
-      if (user?.assigned_role?.slug) {
-        setCurrentTab(roleAllowed[user.assigned_role.slug] || 'front_office');
+    if (isStaff) {
+      if (user?.assigned_role?.slug === 'general-manager') {
+        if (['portfolio_overview', 'overview', 'organizations', 'hotels', 'subscriptions'].includes(currentTab)) {
+          setCurrentTab('dashboard');
+        }
+      } else if (['dashboard', 'portfolio_overview', 'staff', 'overview'].includes(currentTab)) {
+        const roleAllowed = {
+          'head-chef': 'kitchen',
+          'front-desk': 'front_office',
+          'restaurant-cashier': 'restaurant',
+          'storekeeper': 'store',
+        };
+        if (user?.assigned_role?.slug) {
+          setCurrentTab(roleAllowed[user.assigned_role.slug] || 'front_office');
+        }
       }
     }
   }, [isStaff, currentTab, user?.assigned_role?.slug]);

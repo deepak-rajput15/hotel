@@ -263,6 +263,53 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
             </div>
 
             {(() => {
+              if (user.assigned_role.slug === 'general-manager') {
+                return (
+                  <div>
+                    <NavItem
+                      active={currentTab === 'dashboard'}
+                      onClick={() => setCurrentTab('dashboard')}
+                      icon={Layers}
+                      label="Property Overview"
+                    />
+                    <NavItem
+                      active={currentTab === 'staff'}
+                      onClick={() => setCurrentTab('staff')}
+                      icon={ShieldCheck}
+                      label="Hotel Staff Directory"
+                    />
+
+                    <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '14px 10px 6px', letterSpacing: '0.04em' }}>
+                      Subscribed Modules
+                    </div>
+
+                    {allModulesList.map((m) => {
+                      const isSubscribed = activeModules.includes(m.code);
+                      return (
+                        <div key={m.code}>
+                          <NavItem
+                            active={currentTab === m.code}
+                            onClick={() => {
+                              if (isSubscribed) setCurrentTab(m.code);
+                            }}
+                            icon={m.icon}
+                            label={m.name}
+                            disabled={!isSubscribed}
+                            badge={
+                              isSubscribed ? (
+                                <CheckCircle2 size={13} color="var(--success)" />
+                              ) : (
+                                <Lock size={12} color="var(--t-500)" />
+                              )
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              }
+
               const roleAllowedModules = {
                 'head-chef': ['kitchen'],
                 'front-desk': ['front_office', 'rooms'],

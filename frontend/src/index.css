@@ -69,7 +69,13 @@
   box-sizing: border-box;
 }
 
+html,
 body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   font-family: var(--font-body);
   background-color: var(--bg);
   color: var(--t-900);
@@ -106,11 +112,17 @@ h1, h2, h3, h4, h5, h6 {
 .app-container {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   background-color: var(--bg);
+  position: relative;
 }
 
 .sidebar {
   width: 270px;
+  min-width: 270px;
+  max-width: 270px;
   background-color: var(--white);
   border-right: 1px solid var(--border-sub);
   display: flex;
@@ -125,15 +137,22 @@ h1, h2, h3, h4, h5, h6 {
 
 .main-content {
   margin-left: 270px;
-  flex: 1;
+  width: calc(100% - 270px);
+  max-width: calc(100% - 270px);
+  min-width: 0;
+  flex: 1 1 0%;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   background-color: var(--bg);
+  overflow-x: hidden;
 }
 
 .top-navbar {
   height: 68px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   background-color: var(--white);
   border-bottom: 1px solid var(--border-sub);
   padding: 0 32px;
@@ -151,7 +170,10 @@ h1, h2, h3, h4, h5, h6 {
   flex: 1;
   max-width: 1400px;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   margin: 0 auto;
+  overflow-x: hidden;
 }
 
 /* Cards */
@@ -162,6 +184,9 @@ h1, h2, h3, h4, h5, h6 {
   padding: 24px;
   box-shadow: var(--shadow-sm);
   transition: var(--transition);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .card:hover {

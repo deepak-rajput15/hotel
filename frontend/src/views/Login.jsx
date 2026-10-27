@@ -155,6 +155,62 @@ export default function Login() {
             <ArrowRight size={15} />
           </button>
         </form>
+
+        {/* Quick Demo Credentials for Fast Testing */}
+        <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid var(--border-sub)' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', marginBottom: '10px', textAlign: 'center', letterSpacing: '0.04em' }}>
+            Quick Demo Logins (Password: Password@123)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('owner@apexhospitality.com');
+                setPassword('Password@123');
+              }}
+              style={{ padding: '6px 10px', fontSize: '11.5px', background: 'var(--surface-sub)', border: '1px solid var(--border-sub)', borderRadius: 'var(--r-sm)', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}
+            >
+              <span>🏨 <strong>Hotel Owner</strong> (Multi-Hotel Portfolio)</span>
+              <span style={{ color: 'var(--brand)', fontWeight: '600' }}>Select</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('subadmin.vikram@apexhospitality.com');
+                setPassword('Password@123');
+              }}
+              style={{ padding: '6px 10px', fontSize: '11.5px', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 'var(--r-sm)', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', color: '#6d28d9' }}
+            >
+              <span>⭐ <strong>Hotel A Sub-Admin</strong> (Only Hotel A details)</span>
+              <span style={{ fontWeight: '700' }}>Select</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('store.amit@apexhospitality.com');
+                setPassword('Password@123');
+              }}
+              style={{ padding: '6px 10px', fontSize: '11.5px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--r-sm)', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', color: '#047857' }}
+            >
+              <span>📦 <strong>Store Admin / Keeper</strong> (Products & Stocks)</span>
+              <span style={{ fontWeight: '700' }}>Select</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('admin@hotelsaask.com');
+                setPassword('Password@123');
+              }}
+              style={{ padding: '6px 10px', fontSize: '11.5px', background: 'var(--surface-sub)', border: '1px solid var(--border-sub)', borderRadius: 'var(--r-sm)', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}
+            >
+              <span>🛡️ <strong>Platform Super Admin</strong></span>
+              <span style={{ color: 'var(--brand)', fontWeight: '600' }}>Select</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

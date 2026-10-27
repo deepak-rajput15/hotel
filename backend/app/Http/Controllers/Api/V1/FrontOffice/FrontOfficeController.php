@@ -357,6 +357,10 @@ class FrontOfficeController extends Controller
                     'status' => $r->status,
                     'max_guests' => $r->max_guests,
                     'amenities' => $r->amenities ?? [],
+                    'room_mode' => $r->room_mode ?? 'AC',
+                    'extra_bedding_price' => (float) ($r->extra_bedding_price ?? 0),
+                    'gst_percentage' => (float) ($r->gst_percentage ?? 12.00),
+                    'remarks' => $r->remarks,
                     'current_guest' => $activeBooking ? [
                         'booking_id' => $activeBooking->id,
                         'booking_number' => $activeBooking->booking_number,
@@ -372,6 +376,148 @@ class FrontOfficeController extends Controller
         return response()->json([
             'success' => true,
             'rooms' => $rooms,
+        ]);
+    }
+
+    /**
+     * Ensure only Platform Admin, Organization Owner, or Hotel Sub-Admin (General Manager)
+     * can add or modify rooms. Front Desk staff is strictly unauthorized.
+     */
+    protected function authorizeRoomManagement(Request $request, Hotel $hotel): void
+    {
+        $user = $request->user();
+
+        if ($user->isPlatformAdmin()) {
+            return;
+        }
+
+        if ($user->isOrgOwner() && $user->organization_id === $hotel->organization_id) {
+            return;
+        }
+
+        $userAccess = $user->hotelAccess()
+            ->where('hotel_id', $hotel->id)
+            ->with('role')
+            ->first();
+
+        $roleSlug = $userAccess?->role?->slug;
+        if (in_array($roleSlug, ['general-manager', 'hotel-owner'], true)) {
+            return;
+        }
+
+        abort(response()->json([
+            'success' => false,
+            'error_code' => 'ROOM_MANAGEMENT_FORBIDDEN',
+            'message' => 'Only the Hotel Owner and Hotel Sub-Admin (General Manager) are authorized to add or modify rooms. Front Desk staff does not have permission.',
+        ], 403));
+    }
+
+    /**
+     * Create a new room for the hotel property (from Book1.xlsx specification).
+     */
+    public function storeRoom(Request $request): JsonResponse
+    {
+        $hotel = $this->getHotel($request);
+        $this->authorizeRoomManagement($request, $hotel);
+
+        $validated = $request->validate([
+            'room_number' => [
+                'required',
+                'string',
+                'max:20',
+                \Illuminate\Validation\Rule::unique('rooms', 'room_number')->where('hotel_id', $hotel->id),
+            ],
+            'room_type' => 'required|string|max:100',
+            'room_mode' => 'nullable|string|in:AC,Non AC',
+            'floor' => 'nullable|string|max:50',
+            'base_price' => 'required|numeric|min:0',
+            'extra_bedding_price' => 'nullable|numeric|min:0',
+            'gst_percentage' => 'nullable|numeric|min:0|max:100',
+            'status' => 'nullable|string',
+            'max_guests' => 'nullable|integer|min:1',
+            'amenities' => 'nullable|array',
+            'remarks' => 'nullable|string|max:500',
+        ]);
+
+        $statusMap = [
+            'Available' => 'AVAILABLE',
+            'Occupied' => 'OCCUPIED',
+            'Cleaning' => 'DIRTY',
+            'Under Maintenance' => 'MAINTENANCE',
+        ];
+        $status = $validated['status'] ?? 'AVAILABLE';
+        if (isset($statusMap[$status])) {
+            $status = $statusMap[$status];
+        }
+
+        $room = $hotel->rooms()->create([
+            'room_number' => $validated['room_number'],
+            'room_type' => $validated['room_type'],
+            'room_mode' => $validated['room_mode'] ?? 'AC',
+            'floor' => $validated['floor'] ?? '1st Floor',
+            'base_price' => $validated['base_price'],
+            'extra_bedding_price' => $validated['extra_bedding_price'] ?? 0.00,
+            'gst_percentage' => $validated['gst_percentage'] ?? 12.00,
+            'status' => $status,
+            'max_guests' => $validated['max_guests'] ?? 2,
+            'amenities' => $validated['amenities'] ?? ['High-Speed WiFi', 'Smart TV', 'AC', 'Mini Fridge'],
+            'remarks' => $validated['remarks'] ?? null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Room {$room->room_number} ({$room->room_type}) created successfully.",
+            'room' => $room,
+        ], 201);
+    }
+
+    /**
+     * Update room details.
+     */
+    public function updateRoom(Request $request, string $roomId): JsonResponse
+    {
+        $hotel = $this->getHotel($request);
+        $this->authorizeRoomManagement($request, $hotel);
+        $room = $hotel->rooms()->findOrFail($roomId);
+
+        $validated = $request->validate([
+            'room_number' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:20',
+                \Illuminate\Validation\Rule::unique('rooms', 'room_number')->where('hotel_id', $hotel->id)->ignore($room->id),
+            ],
+            'room_type' => 'sometimes|required|string|max:100',
+            'room_mode' => 'nullable|string|in:AC,Non AC',
+            'floor' => 'nullable|string|max:50',
+            'base_price' => 'sometimes|required|numeric|min:0',
+            'extra_bedding_price' => 'nullable|numeric|min:0',
+            'gst_percentage' => 'nullable|numeric|min:0|max:100',
+            'status' => 'nullable|string',
+            'max_guests' => 'nullable|integer|min:1',
+            'amenities' => 'nullable|array',
+            'remarks' => 'nullable|string|max:500',
+        ]);
+
+        if (isset($validated['status'])) {
+            $statusMap = [
+                'Available' => 'AVAILABLE',
+                'Occupied' => 'OCCUPIED',
+                'Cleaning' => 'DIRTY',
+                'Under Maintenance' => 'MAINTENANCE',
+            ];
+            if (isset($statusMap[$validated['status']])) {
+                $validated['status'] = $statusMap[$validated['status']];
+            }
+        }
+
+        $room->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Room {$room->room_number} updated successfully.",
+            'room' => $room,
         ]);
     }
 
@@ -462,7 +608,8 @@ class FrontOfficeController extends Controller
 
             // Stay parameters
             'room_id' => 'required|uuid|exists:rooms,id',
-            'expected_check_out_at' => 'required|date|after:now',
+            'check_in_at' => 'nullable|date',
+            'expected_check_out_at' => 'required|date',
             'num_adults' => 'nullable|integer|min:1',
             'num_children' => 'nullable|integer|min:0',
             'special_requests' => 'nullable|string',
@@ -478,12 +625,49 @@ class FrontOfficeController extends Controller
         return DB::transaction(function () use ($hotel, $validated) {
             $room = $hotel->rooms()->where('id', $validated['room_id'])->lockForUpdate()->firstOrFail();
 
-            if ($room->status === 'OCCUPIED') {
+            $checkInTime = !empty($validated['check_in_at'])
+                ? Carbon::parse($validated['check_in_at'])
+                : Carbon::now();
+            $checkOutTime = Carbon::parse($validated['expected_check_out_at']);
+
+            if ($checkOutTime->lte($checkInTime)) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Room {$room->room_number} is already occupied by an in-house guest.",
+                    'message' => 'Check-out date and time must be after the check-in date and time.',
                 ], 422);
             }
+
+            // Check if there is an overlapping active or reserved booking for this room
+            $overlapping = Booking::where('room_id', $room->id)
+                ->whereIn('status', ['CHECKED_IN', 'RESERVED'])
+                ->where(function ($q) use ($checkInTime, $checkOutTime) {
+                    $q->where('check_in_at', '<', $checkOutTime)
+                      ->where('expected_check_out_at', '>', $checkInTime);
+                })
+                ->with('guest')
+                ->first();
+
+            if ($overlapping) {
+                $guestName = $overlapping->guest ? ($overlapping->guest->first_name . ' ' . $overlapping->guest->last_name) : 'another guest';
+                $start = $overlapping->check_in_at->format('d M Y, h:i A');
+                $end = $overlapping->expected_check_out_at->format('d M Y, h:i A');
+                return response()->json([
+                    'success' => false,
+                    'message' => "Room {$room->room_number} is not available for the selected dates. It is already booked by {$guestName} from {$start} to {$end}.",
+                ], 422);
+            }
+
+            // If check-in is in the future (> 6 hours ahead), treat as advance reservation
+            $isFutureReservation = $checkInTime->isAfter(Carbon::now()->addHours(6));
+
+            if (!$isFutureReservation && $room->status === 'OCCUPIED') {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Room {$room->room_number} is currently occupied by an in-house guest today.",
+                ], 422);
+            }
+
+            $bookingStatus = $isFutureReservation ? 'RESERVED' : 'CHECKED_IN';
 
             // 1. Create or update guest profile with KYC identity
             $guest = Guest::create([
@@ -503,9 +687,7 @@ class FrontOfficeController extends Controller
             ]);
 
             // 2. Calculate duration
-            $checkInTime = Carbon::now();
-            $checkOutTime = Carbon::parse($validated['expected_check_out_at']);
-            $nights = max(1, (int) ceil($checkInTime->diffInDays($checkOutTime) ?: 1));
+            $nights = max(1, (int) $checkInTime->copy()->startOfDay()->diffInDays($checkOutTime->copy()->startOfDay()));
 
             $ratePerNight = isset($validated['room_rate_per_night']) && $validated['room_rate_per_night'] > 0
                 ? (float) $validated['room_rate_per_night']
@@ -524,7 +706,7 @@ class FrontOfficeController extends Controller
                 'expected_check_out_at' => $checkOutTime,
                 'num_adults' => $validated['num_adults'] ?? 1,
                 'num_children' => $validated['num_children'] ?? 0,
-                'status' => 'CHECKED_IN',
+                'status' => $bookingStatus,
                 'room_rate_per_night' => $ratePerNight,
                 'total_nights' => $nights,
                 'total_room_charges' => $totalRoomCharges,
@@ -533,15 +715,19 @@ class FrontOfficeController extends Controller
                 'special_requests' => $validated['special_requests'] ?? null,
             ]);
 
-            // 4. Mark room as OCCUPIED
-            $room->status = 'OCCUPIED';
-            $room->save();
+            // 4. Mark room as OCCUPIED only if immediate check-in today
+            if (!$isFutureReservation) {
+                $room->status = 'OCCUPIED';
+                $room->save();
+            }
 
             // 5. Post Room Tariff to Folio
             FolioItem::create([
                 'booking_id' => $booking->id,
                 'item_type' => 'ROOM_CHARGE',
-                'description' => "Room Tariff ({$nights} Nights x ₹" . number_format($ratePerNight, 2) . ")",
+                'description' => $isFutureReservation
+                    ? "Advance Reservation Tariff ({$nights} Nights x ₹" . number_format($ratePerNight, 2) . ")"
+                    : "Room Tariff ({$nights} Nights x ₹" . number_format($ratePerNight, 2) . ")",
                 'quantity' => $nights,
                 'unit_price' => $ratePerNight,
                 'total_price' => $totalRoomCharges,
@@ -558,16 +744,23 @@ class FrontOfficeController extends Controller
                     'payment_method' => $validated['payment_method'] ?? 'UPI_QR',
                     'transaction_reference' => $validated['transaction_reference'] ?? ('DEP/' . time()),
                     'payment_type' => 'ADVANCE_DEPOSIT',
-                    'notes' => 'Advance deposit collected at front desk check-in counter.',
+                    'notes' => $isFutureReservation
+                        ? 'Advance deposit collected for future room reservation.'
+                        : 'Advance deposit collected at front desk check-in counter.',
                 ]);
             }
 
             // 7. Calculate final totals, taxes, and balance
             $booking->recalculateTotals();
 
+            $message = $isFutureReservation
+                ? "Advance Reservation confirmed for Room {$room->room_number} ({$booking->booking_number}) from " . $checkInTime->format('d M Y, h:i A') . " to " . $checkOutTime->format('d M Y, h:i A') . " ({$nights} Nights)."
+                : "Guest {$guest->full_name} checked in to Room {$room->room_number} successfully ({$nights} Nights). Folio #{$booking->booking_number} generated.";
+
             return response()->json([
                 'success' => true,
-                'message' => "Guest {$guest->full_name} checked into Room {$room->room_number} successfully.",
+                'message' => $message,
+                'is_future_reservation' => $isFutureReservation,
                 'booking' => $booking->fresh(['guest', 'room', 'folioItems', 'payments']),
             ], 201);
         });

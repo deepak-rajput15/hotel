@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
+use App\Http\Controllers\Api\V1\Store\StoreInventoryController;
+
 Route::prefix('v1')->group(function () {
 
     // 1. Authentication
@@ -35,11 +37,13 @@ Route::prefix('v1')->group(function () {
 
         // Module-Protected Operational Routes (Enforced via 'tenant' and 'module:{code}')
         Route::middleware('tenant')->group(function () {
-            // Front Office routes (Guest Check-in, KYC Documents, Folio Billing, Room Rack)
-            Route::prefix('front-office')->middleware('module:front_office')->group(function () {
+            // Front Office & Rooms routes (Guest Check-in, KYC Documents, Folio Billing, Room Rack & Creation)
+            Route::prefix('front-office')->middleware('module:front_office,rooms')->group(function () {
                 Route::get('/dashboard', [FrontOfficeController::class, 'overview']);
                 Route::get('/overview', [FrontOfficeController::class, 'overview']);
                 Route::get('/rooms', [FrontOfficeController::class, 'rooms']);
+                Route::post('/rooms', [FrontOfficeController::class, 'storeRoom']);
+                Route::put('/rooms/{roomId}', [FrontOfficeController::class, 'updateRoom']);
                 Route::get('/rooms/calendar', [FrontOfficeController::class, 'calendar']);
                 Route::put('/rooms/{roomId}/status', [FrontOfficeController::class, 'updateRoomStatus']);
                 Route::get('/bookings', [FrontOfficeController::class, 'bookings']);
@@ -48,6 +52,16 @@ Route::prefix('v1')->group(function () {
                 Route::post('/bookings/{id}/folio-items', [FrontOfficeController::class, 'addFolioCharge']);
                 Route::post('/bookings/{id}/payments', [FrontOfficeController::class, 'recordPayment']);
                 Route::post('/bookings/{id}/check-out', [FrontOfficeController::class, 'checkOut']);
+            });
+
+            // Store & Inventory routes (Products, Stock adjustment, Low stock alerts, Suppliers)
+            Route::prefix('store')->middleware('module:store,purchase')->group(function () {
+                Route::get('/products', [StoreInventoryController::class, 'products']);
+                Route::post('/products', [StoreInventoryController::class, 'storeProduct']);
+                Route::put('/products/{id}', [StoreInventoryController::class, 'updateProduct']);
+                Route::post('/products/{id}/adjust-stock', [StoreInventoryController::class, 'adjustStock']);
+                Route::get('/suppliers', [StoreInventoryController::class, 'suppliers']);
+                Route::post('/suppliers', [StoreInventoryController::class, 'storeSupplier']);
             });
 
             // Restaurant routes

@@ -20,6 +20,7 @@ class ResolveTenantContext
         }
 
         $hotelIdentifier = $request->header('X-Hotel-ID') 
+            ?? $request->header('X-Hotel-Context')
             ?? $request->route('hotelId') 
             ?? $request->input('hotel_id');
 

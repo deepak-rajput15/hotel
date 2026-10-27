@@ -362,7 +362,7 @@ export default function StaffManagementTab({ activeHotelId = 'ALL' }) {
                       {staff.role?.slug === 'front-desk' && '🛎️ Front Desk & Rooms Only'}
                       {staff.role?.slug === 'restaurant-cashier' && '🍽️ Restaurant POS Only'}
                       {staff.role?.slug === 'storekeeper' && '📦 Store & Purchases Only'}
-                      {staff.role?.slug === 'general-manager' && '⭐ All Subscribed Modules'}
+                      {staff.role?.slug === 'general-manager' && '⭐ Hotel Sub-Admin (All modules of this hotel only)'}
                     </div>
                   </td>
                   <td>
@@ -495,7 +495,7 @@ export default function StaffManagementTab({ activeHotelId = 'ALL' }) {
                 >
                   {availableRoles.map(r => (
                     <option key={r.id} value={r.id}>
-                      {r.name} ({r.description})
+                      {r.slug === 'general-manager' ? `⭐ Hotel Sub-Admin (General Manager) - Restricted to selected hotel only` : `${r.name} (${r.description})`}
                     </option>
                   ))}
                 </select>

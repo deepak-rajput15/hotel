@@ -55,38 +55,12 @@ export default function SuperAdminDashboard({ activeTab = 'overview', onNavigate
     loadData();
   }, []);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [orgsRes, hotelsRes, modsRes] = await Promise.all([
-        adminApi.getOrganizations(),
-        adminApi.getHotels(),
-        adminApi.getModules(),
-      ]);
-
-      if (orgsRes.success) setOrganizations(orgsRes.data.data || orgsRes.data || []);
-      if (hotelsRes.success) {
-        const hotelList = hotelsRes.data.data || hotelsRes.data || [];
-        setHotels(hotelList);
-        if (hotelList.length > 0 && !selectedHotel) {
-          selectHotelForManagement(hotelList[0]);
-        }
-      }
-      if (modsRes.success) setModules(modsRes.data || []);
-    } catch (err) {
-      console.error('Failed to load super admin data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const selectHotelForManagement = (hotel) => {
-    setSelectedHotel(hotel);
-
+  const populateToggles = (hotel, moduleList) => {
+    if (!hotel || !moduleList || moduleList.length === 0) return {};
     const toggles = {};
     const subs = hotel.subscriptions || [];
 
-    modules.forEach((mod) => {
+    moduleList.forEach((mod) => {
       const existingSub = subs.find(
         (s) => s.module?.code === mod.code || s.module_id === mod.id
       );
@@ -96,7 +70,50 @@ export default function SuperAdminDashboard({ activeTab = 'overview', onNavigate
       };
     });
 
-    setModuleToggles(toggles);
+    return toggles;
+  };
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [orgsRes, hotelsRes, modsRes] = await Promise.all([
+        adminApi.getOrganizations(),
+        adminApi.getHotels(),
+        adminApi.getModules(),
+      ]);
+
+      const availableModules = modsRes.success ? (modsRes.data || []) : [];
+      setModules(availableModules);
+
+      if (orgsRes.success) setOrganizations(orgsRes.data.data || orgsRes.data || []);
+      if (hotelsRes.success) {
+        const hotelList = hotelsRes.data.data || hotelsRes.data || [];
+        setHotels(hotelList);
+        if (hotelList.length > 0) {
+          const initialHotel = selectedHotel 
+            ? hotelList.find((h) => h.id === selectedHotel.id) || hotelList[0] 
+            : hotelList[0];
+          setSelectedHotel(initialHotel);
+          setModuleToggles(populateToggles(initialHotel, availableModules));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load super admin data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Ensure toggles are initialized if modules load after hotel selection
+  useEffect(() => {
+    if (selectedHotel && modules.length > 0 && Object.keys(moduleToggles).length === 0) {
+      setModuleToggles(populateToggles(selectedHotel, modules));
+    }
+  }, [selectedHotel, modules]);
+
+  const selectHotelForManagement = (hotel) => {
+    setSelectedHotel(hotel);
+    setModuleToggles(populateToggles(hotel, modules));
   };
 
   const handleToggle = (moduleCode) => {
@@ -134,7 +151,10 @@ export default function SuperAdminDashboard({ activeTab = 'overview', onNavigate
         const updatedList = hotelsRes.data.data || hotelsRes.data || [];
         setHotels(updatedList);
         const updatedHotel = updatedList.find((h) => h.id === selectedHotel.id);
-        if (updatedHotel) setSelectedHotel(updatedHotel);
+        if (updatedHotel) {
+          setSelectedHotel(updatedHotel);
+          setModuleToggles(populateToggles(updatedHotel, modules));
+        }
       }
     } catch (err) {
       setNotification({
@@ -169,7 +189,10 @@ export default function SuperAdminDashboard({ activeTab = 'overview', onNavigate
         loadData();
       }
     } catch (err) {
-      alert('Error creating organization: ' + err.message);
+      const errorMsg = err.data?.errors 
+        ? Object.values(err.data.errors).flat().join('\n') 
+        : (err.data?.message || err.message);
+      alert('Error creating organization:\n' + errorMsg);
     }
   };
 
@@ -198,7 +221,10 @@ export default function SuperAdminDashboard({ activeTab = 'overview', onNavigate
         loadData();
       }
     } catch (err) {
-      alert('Error creating hotel: ' + err.message);
+      const errorMsg = err.data?.errors 
+        ? Object.values(err.data.errors).flat().join('\n') 
+        : (err.data?.message || err.message);
+      alert('Error creating hotel:\n' + errorMsg);
     }
   };
 

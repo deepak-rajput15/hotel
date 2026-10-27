@@ -19,7 +19,8 @@ class EnsureModuleSubscribed
      */
     public function handle(Request $request, Closure $next, string $moduleCode): Response
     {
-        $hotel = $request->attributes->get('current_hotel') ?? app()->makeWith('current_hotel', []);
+        $hotel = $request->attributes->get('current_hotel') 
+            ?? (app()->bound('current_hotel') ? app('current_hotel') : null);
 
         if (!$hotel instanceof Hotel) {
             return response()->json([
@@ -31,11 +32,14 @@ class EnsureModuleSubscribed
 
         $activeModules = $this->assignModulesAction->getActiveModuleCodes($hotel);
 
-        if (!in_array($moduleCode, $activeModules, true)) {
+        $requiredCodes = array_map('trim', explode(',', $moduleCode));
+        $hasAny = count(array_intersect($requiredCodes, $activeModules)) > 0;
+
+        if (!$hasAny) {
             return response()->json([
                 'success' => false,
                 'error_code' => 'MODULE_NOT_SUBSCRIBED',
-                'message' => "Hotel '{$hotel->name}' ({$hotel->hotel_code}) does not have an active subscription for the '{$moduleCode}' module.",
+                'message' => "Hotel '{$hotel->name}' ({$hotel->hotel_code}) does not have an active subscription for the required module (" . implode(', ', $requiredCodes) . ").",
                 'required_module' => $moduleCode,
                 'hotel_code' => $hotel->hotel_code,
             ], Response::HTTP_FORBIDDEN);

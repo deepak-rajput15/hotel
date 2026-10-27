@@ -9,41 +9,51 @@ class GenerateUniqueCodeAction
 {
     /**
      * Generate unique Organization code like ORG-1001, ORG-1002...
+     * Database-agnostic (MySQL, PostgreSQL, SQLite).
      */
     public function forOrganization(): string
     {
-        $lastOrg = Organization::withTrashed()
+        $orgCodes = Organization::withTrashed()
             ->where('org_code', 'LIKE', 'ORG-%')
-            ->orderByRaw("CAST(SUBSTRING(org_code FROM 5) AS INTEGER) DESC")
-            ->first();
+            ->pluck('org_code');
 
-        if (!$lastOrg) {
+        if ($orgCodes->isEmpty()) {
             return 'ORG-1001';
         }
 
-        $lastNumber = (int) substr($lastOrg->org_code, 4);
-        $nextNumber = max($lastNumber + 1, 1001);
+        $maxNumber = 1000;
+        foreach ($orgCodes as $code) {
+            $num = (int) substr($code, 4);
+            if ($num > $maxNumber) {
+                $maxNumber = $num;
+            }
+        }
 
-        return 'ORG-' . $nextNumber;
+        return 'ORG-' . ($maxNumber + 1);
     }
 
     /**
      * Generate unique Hotel code like HTL-1001, HTL-1002...
+     * Database-agnostic (MySQL, PostgreSQL, SQLite).
      */
     public function forHotel(): string
     {
-        $lastHotel = Hotel::withTrashed()
+        $hotelCodes = Hotel::withTrashed()
             ->where('hotel_code', 'LIKE', 'HTL-%')
-            ->orderByRaw("CAST(SUBSTRING(hotel_code FROM 5) AS INTEGER) DESC")
-            ->first();
+            ->pluck('hotel_code');
 
-        if (!$lastHotel) {
+        if ($hotelCodes->isEmpty()) {
             return 'HTL-1001';
         }
 
-        $lastNumber = (int) substr($lastHotel->hotel_code, 4);
-        $nextNumber = max($lastNumber + 1, 1001);
+        $maxNumber = 1000;
+        foreach ($hotelCodes as $code) {
+            $num = (int) substr($code, 4);
+            if ($num > $maxNumber) {
+                $maxNumber = $num;
+            }
+        }
 
-        return 'HTL-' . $nextNumber;
+        return 'HTL-' . ($maxNumber + 1);
     }
 }

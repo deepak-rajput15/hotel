@@ -151,11 +151,29 @@ class DatabaseSeeder extends Seeder
             $hotelC = Hotel::where('hotel_code', 'HTL-1003')->first();
         }
 
-        // 5. Seed Granular Tier 3 Staff Logins for Each Module
+        // 5. Seed Granular Tier 3 Staff Logins & Hotel Sub-Admins
+        $generalManagerRole = Role::where('slug', 'general-manager')->first();
         $frontDeskRole = Role::where('slug', 'front-desk')->first();
         $cashierRole = Role::where('slug', 'restaurant-cashier')->first();
         $chefRole = Role::where('slug', 'head-chef')->first();
         $storeRole = Role::where('slug', 'storekeeper')->first();
+
+        // Hotel Sub-Admin / General Manager (Assigned exclusively to Hotel A: HTL-1001)
+        $subAdminUser = User::updateOrCreate(
+            ['email' => 'subadmin.vikram@apexhospitality.com'],
+            [
+                'organization_id' => $organization->id,
+                'name' => 'Vikram Malhotra (Hotel A Sub-Admin)',
+                'password' => Hash::make('Password@123'),
+                'is_platform_admin' => false,
+                'is_org_owner' => false,
+                'status' => 'ACTIVE',
+            ]
+        );
+        UserHotelAccess::updateOrCreate(
+            ['user_id' => $subAdminUser->id, 'hotel_id' => $hotelA->id],
+            ['role_id' => $generalManagerRole->id, 'is_default' => true]
+        );
 
         // Front Desk Receptionist (Assigned to Hotel A: HTL-1001)
         $frontDeskUser = User::updateOrCreate(
@@ -224,5 +242,11 @@ class DatabaseSeeder extends Seeder
             ['user_id' => $storeUser->id, 'hotel_id' => $hotelC->id],
             ['role_id' => $storeRole->id, 'is_default' => true]
         );
+
+        // 6. Seed Operational Front Office and Master Data (from Book1.xlsx specs)
+        $this->call([
+            FrontOfficeSeeder::class,
+            MasterDataSeeder::class,
+        ]);
     }
 }

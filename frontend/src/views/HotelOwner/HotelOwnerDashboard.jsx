@@ -4,6 +4,7 @@ import { hotelApi } from '../../api';
 import ConsolidatedPortfolioView from './ConsolidatedPortfolioView';
 import StaffManagementTab from './StaffManagementTab';
 import FrontOfficeWorkspace from '../FrontOffice/FrontOfficeWorkspace';
+import StoreInventoryWorkspace from '../Store/StoreInventoryWorkspace';
 import {
   Bed,
   ConciergeBell,
@@ -53,27 +54,35 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
   const isModuleActive = (code) => activeModules.includes(code);
   const isStaff = !!user?.assigned_role && !user?.is_org_owner;
 
-  // If a staff user somehow lands on the owner dashboard view, render their operational module
+  // If a role-restricted staff lands on the default tab, route them directly to their operational console
   if (isStaff && activeTab === 'dashboard') {
-    const roleAllowed = {
-      'head-chef': 'kitchen',
-      'front-desk': 'front_office',
-      'restaurant-cashier': 'restaurant',
-      'storekeeper': 'store',
-    };
-    const defaultMod = roleAllowed[user.assigned_role.slug] || 'front_office';
-    if (defaultMod === 'front_office') {
+    if (user.assigned_role.slug === 'storekeeper') {
       return (
         <div className="page-body">
-          <FrontOfficeWorkspace />
+          <StoreInventoryWorkspace />
         </div>
       );
     }
+    if (user.assigned_role.slug !== 'general-manager') {
+      const roleAllowed = {
+        'head-chef': 'kitchen',
+        'front-desk': 'front_office',
+        'restaurant-cashier': 'restaurant',
+      };
+      const defaultMod = roleAllowed[user.assigned_role.slug] || 'front_office';
+      if (defaultMod === 'front_office') {
+        return (
+          <div className="page-body">
+            <FrontOfficeWorkspace />
+          </div>
+        );
+      }
+    }
   }
 
-  // 1. Staff Management Route (Tier 2 Owner generates Tier 3 credentials)
+  // 1. Staff Management Route (Owner or Hotel Sub-Admin / General Manager for this property)
   if (activeTab === 'staff') {
-    if (isStaff) {
+    if (isStaff && user?.assigned_role?.slug !== 'general-manager') {
       return null;
     }
     return <StaffManagementTab activeHotelId={currentHotel?.id} />;
@@ -95,9 +104,9 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
     );
   }
 
-  // 3. Operational Front Office Route
-  if (activeTab === 'front_office') {
-    if (!isModuleActive('front_office')) {
+  // 3. Operational Front Office Route & Rooms Rack
+  if (activeTab === 'front_office' || activeTab === 'rooms') {
+    if (!isModuleActive('front_office') && !isModuleActive('rooms')) {
       return (
         <div className="page-body">
           <div className="card" style={{ textAlign: 'center', padding: '48px 24px' }}>
@@ -105,7 +114,7 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
               <Lock size={28} />
             </div>
             <h3 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--t-900)' }}>
-              Front Office Module Locked
+              Front Office / Rooms Module Locked
             </h3>
             <p style={{ fontSize: '13px', color: 'var(--t-500)', maxWidth: '420px', margin: '6px auto 16px' }}>
               Property <strong>{currentHotel?.name} ({currentHotel?.hotel_code})</strong> does not have an active Front Office subscription. Subscription must be toggled by the Platform Super Admin.
@@ -118,6 +127,33 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
     return (
       <div className="page-body">
         <FrontOfficeWorkspace />
+      </div>
+    );
+  }
+
+  // 4. Store & Inventory Management Route (Book1.xlsx Product & Stock Management)
+  if (activeTab === 'store' || activeTab === 'purchase') {
+    if (!isModuleActive('store') && !isModuleActive('purchase')) {
+      return (
+        <div className="page-body">
+          <div className="card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--error-bg)', color: 'var(--error)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Lock size={28} />
+            </div>
+            <h3 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--t-900)' }}>
+              Store & Inventory Module Locked
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--t-500)', maxWidth: '420px', margin: '6px auto 16px' }}>
+              Property <strong>{currentHotel?.name} ({currentHotel?.hotel_code})</strong> does not have an active Store / Inventory subscription. Subscription must be toggled by the Platform Super Admin.
+            </p>
+            <span className="badge badge-inactive">Status: Subscription Inactive</span>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="page-body">
+        <StoreInventoryWorkspace />
       </div>
     );
   }

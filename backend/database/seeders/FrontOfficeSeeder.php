@@ -21,14 +21,14 @@ class FrontOfficeSeeder extends Seeder
             // Seed Rooms for each hotel if none exist
             if ($hotel->rooms()->count() === 0) {
                 $roomTemplates = [
-                    ['room_number' => '101', 'room_type' => 'Deluxe King Room', 'floor' => '1st Floor', 'base_price' => 2800.00, 'status' => 'OCCUPIED'],
-                    ['room_number' => '102', 'room_type' => 'Deluxe King Room', 'floor' => '1st Floor', 'base_price' => 2800.00, 'status' => 'AVAILABLE'],
-                    ['room_number' => '103', 'room_type' => 'Executive Suite', 'floor' => '1st Floor', 'base_price' => 4500.00, 'status' => 'AVAILABLE'],
-                    ['room_number' => '104', 'room_type' => 'Executive Suite', 'floor' => '1st Floor', 'base_price' => 4500.00, 'status' => 'DIRTY'],
-                    ['room_number' => '201', 'room_type' => 'Deluxe Twin Room', 'floor' => '2nd Floor', 'base_price' => 2600.00, 'status' => 'OCCUPIED'],
-                    ['room_number' => '202', 'room_type' => 'Deluxe Twin Room', 'floor' => '2nd Floor', 'base_price' => 2600.00, 'status' => 'AVAILABLE'],
-                    ['room_number' => '203', 'room_type' => 'Presidential Royal Suite', 'floor' => '2nd Floor', 'base_price' => 7500.00, 'status' => 'AVAILABLE'],
-                    ['room_number' => '204', 'room_type' => 'Standard Single Room', 'floor' => '2nd Floor', 'base_price' => 1900.00, 'status' => 'MAINTENANCE'],
+                    ['room_number' => '101', 'room_type' => 'Deluxe', 'room_mode' => 'AC', 'floor' => '1st Floor', 'base_price' => 2800.00, 'extra_bedding_price' => 500.00, 'gst_percentage' => 12.00, 'status' => 'OCCUPIED', 'remarks' => 'King bed with pool view'],
+                    ['room_number' => '102', 'room_type' => 'Deluxe', 'room_mode' => 'AC', 'floor' => '1st Floor', 'base_price' => 2800.00, 'extra_bedding_price' => 500.00, 'gst_percentage' => 12.00, 'status' => 'AVAILABLE', 'remarks' => 'King bed, near elevator'],
+                    ['room_number' => '103', 'room_type' => 'Suite', 'room_mode' => 'AC', 'floor' => '1st Floor', 'base_price' => 4500.00, 'extra_bedding_price' => 800.00, 'gst_percentage' => 18.00, 'status' => 'AVAILABLE', 'remarks' => 'Executive corner suite'],
+                    ['room_number' => '104', 'room_type' => 'Suite', 'room_mode' => 'AC', 'floor' => '1st Floor', 'base_price' => 4500.00, 'extra_bedding_price' => 800.00, 'gst_percentage' => 18.00, 'status' => 'DIRTY', 'remarks' => 'Requires deep cleaning'],
+                    ['room_number' => '201', 'room_type' => 'Semi Deluxe', 'room_mode' => 'AC', 'floor' => '2nd Floor', 'base_price' => 2600.00, 'extra_bedding_price' => 400.00, 'gst_percentage' => 12.00, 'status' => 'OCCUPIED', 'remarks' => 'Twin beds'],
+                    ['room_number' => '202', 'room_type' => 'Double', 'room_mode' => 'Non AC', 'floor' => '2nd Floor', 'base_price' => 1800.00, 'extra_bedding_price' => 300.00, 'gst_percentage' => 12.00, 'status' => 'AVAILABLE', 'remarks' => 'Natural ventilation'],
+                    ['room_number' => '203', 'room_type' => 'Suite', 'room_mode' => 'AC', 'floor' => '2nd Floor', 'base_price' => 7500.00, 'extra_bedding_price' => 1000.00, 'gst_percentage' => 18.00, 'status' => 'AVAILABLE', 'remarks' => 'Presidential Suite with balcony'],
+                    ['room_number' => '204', 'room_type' => 'Single', 'room_mode' => 'Non AC', 'floor' => '2nd Floor', 'base_price' => 1400.00, 'extra_bedding_price' => 250.00, 'gst_percentage' => 12.00, 'status' => 'MAINTENANCE', 'remarks' => 'Plumbing inspection underway'],
                 ];
 
                 foreach ($roomTemplates as $rt) {
@@ -36,9 +36,13 @@ class FrontOfficeSeeder extends Seeder
                         'hotel_id' => $hotel->id,
                         'room_number' => $rt['room_number'],
                         'room_type' => $rt['room_type'],
+                        'room_mode' => $rt['room_mode'],
                         'floor' => $rt['floor'],
                         'base_price' => $rt['base_price'],
+                        'extra_bedding_price' => $rt['extra_bedding_price'],
+                        'gst_percentage' => $rt['gst_percentage'],
                         'status' => $rt['status'],
+                        'remarks' => $rt['remarks'],
                         'max_guests' => 2,
                         'amenities' => ['High-Speed WiFi', 'Smart TV', 'AC', 'Mini Fridge', 'Tea/Coffee Maker'],
                     ]);

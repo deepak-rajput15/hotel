@@ -52,7 +52,14 @@ class CreateHotelAction
             // If owner users exist for this org, attach the primary owner
             $owner = $organization->users()->where('is_org_owner', true)->first();
             if ($owner) {
-                $ownerRole = Role::where('slug', 'hotel-owner')->first();
+                $ownerRole = Role::firstOrCreate(
+                    ['slug' => 'hotel-owner'],
+                    [
+                        'name' => 'Hotel Owner',
+                        'description' => 'Owner of one or multiple hotels',
+                        'is_system' => true,
+                    ]
+                );
                 $isFirstHotel = $organization->hotels()->count() === 1;
 
                 UserHotelAccess::firstOrCreate(
@@ -61,7 +68,7 @@ class CreateHotelAction
                         'hotel_id' => $hotel->id,
                     ],
                     [
-                        'role_id' => $ownerRole?->id,
+                        'role_id' => $ownerRole->id,
                         'is_default' => $isFirstHotel,
                     ]
                 );

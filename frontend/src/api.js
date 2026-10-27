@@ -106,4 +106,43 @@ export const frontOfficeApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  createRoom: (data) =>
+    apiRequest('/front-office/rooms', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateRoom: (roomId, data) =>
+    apiRequest(`/front-office/rooms/${roomId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 };
+
+export const storeApi = {
+  getProducts: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/store/products${qs ? '?' + qs : ''}`);
+  },
+  createProduct: (data) =>
+    apiRequest('/store/products', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateProduct: (id, data) =>
+    apiRequest(`/store/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  adjustStock: (id, data) =>
+    apiRequest(`/store/products/${id}/adjust-stock`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getSuppliers: () => apiRequest('/store/suppliers'),
+  createSupplier: (data) =>
+    apiRequest('/store/suppliers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
+

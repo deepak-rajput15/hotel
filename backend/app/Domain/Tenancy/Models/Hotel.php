@@ -92,6 +92,21 @@ class Hotel extends Model
         return $this->hasMany(\App\Domain\FrontOffice\Models\Booking::class);
     }
 
+    public function suppliers(): HasMany
+    {
+        return $this->hasMany(\App\Domain\Purchase\Models\Supplier::class);
+    }
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(\App\Domain\Store\Models\Product::class);
+    }
+
+    public function restaurantTables(): HasMany
+    {
+        return $this->hasMany(\App\Domain\Restaurant\Models\RestaurantTable::class);
+    }
+
     /**
      * Check if a module is currently active and subscribed for this hotel.
      */
