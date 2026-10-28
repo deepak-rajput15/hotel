@@ -17,6 +17,7 @@ class BookingGuest extends Model
     protected $fillable = [
         'booking_id',
         'hotel_id',
+        'guest_category',
         'first_name',
         'last_name',
         'gender',
@@ -26,6 +27,10 @@ class BookingGuest extends Model
         'id_number',
         'relationship',
         'nationality',
+        'address',
+        'city',
+        'state',
+        'country',
     ];
 
     public function booking(): BelongsTo
@@ -43,3 +48,4 @@ class BookingGuest extends Model
         return trim("{$this->first_name} {$this->last_name}");
     }
 }
+

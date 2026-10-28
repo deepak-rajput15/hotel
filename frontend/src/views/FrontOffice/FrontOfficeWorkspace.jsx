@@ -203,37 +203,96 @@ export default function FrontOfficeWorkspace() {
     }
   };
 
+  const syncCoGuests = (adultsVal, childrenVal, currentForm) => {
+    const numAdults = adultsVal === '' ? 1 : Math.max(1, parseInt(adultsVal, 10) || 1);
+    const numKids = childrenVal === '' ? 0 : Math.max(0, parseInt(childrenVal, 10) || 0);
+    const neededAdults = Math.max(0, numAdults - 1);
+    const neededKids = numKids;
+
+    const existing = currentForm.co_guests || [];
+    const existingAdults = existing.filter(g => (g.guest_category || 'ADULT') === 'ADULT');
+    const existingKids = existing.filter(g => g.guest_category === 'CHILD');
+
+    let nextAdults = [...existingAdults];
+    while (nextAdults.length < neededAdults) {
+      nextAdults.push({
+        guest_category: 'ADULT',
+        first_name: '',
+        last_name: '',
+        gender: 'FEMALE',
+        age: '',
+        phone: '',
+        id_type: 'AADHAAR',
+        id_number: '',
+        relationship: 'Family',
+        nationality: currentForm.nationality || 'Indian',
+        address: currentForm.address || '',
+        city: currentForm.city || '',
+        state: currentForm.state || '',
+        country: currentForm.country || 'India',
+      });
+    }
+    if (nextAdults.length > neededAdults) {
+      nextAdults = nextAdults.slice(0, neededAdults);
+    }
+
+    let nextKids = [...existingKids];
+    while (nextKids.length < neededKids) {
+      nextKids.push({
+        guest_category: 'CHILD',
+        first_name: '',
+        last_name: '',
+        gender: 'MALE',
+        age: '',
+        phone: currentForm.phone || '',
+        id_type: 'AADHAAR',
+        id_number: '',
+        relationship: 'Child',
+        nationality: currentForm.nationality || 'Indian',
+        address: currentForm.address || '',
+        city: currentForm.city || '',
+        state: currentForm.state || '',
+        country: currentForm.country || 'India',
+      });
+    }
+    if (nextKids.length > neededKids) {
+      nextKids = nextKids.slice(0, neededKids);
+    }
+
+    return [...nextAdults, ...nextKids];
+  };
+
   const handleAdultsChange = (newCountVal) => {
     if (newCountVal === '' || newCountVal === null || newCountVal === undefined) {
-      setCheckInForm(prev => ({ ...prev, num_adults: '' }));
+      setCheckInForm(prev => ({
+        ...prev,
+        num_adults: '',
+        co_guests: syncCoGuests('', prev.num_children, prev),
+      }));
       return;
     }
     const adults = Math.max(1, parseInt(newCountVal, 10) || 1);
-    const needed = adults - 1;
-    let co = [...(checkInForm.co_guests || [])];
-
-    if (co.length < needed) {
-      while (co.length < needed) {
-        co.push({
-          first_name: '',
-          last_name: '',
-          gender: 'FEMALE',
-          age: '',
-          phone: '',
-          id_type: 'AADHAAR',
-          id_number: '',
-          relationship: 'Family',
-          nationality: checkInForm.nationality || 'Indian',
-        });
-      }
-    } else if (co.length > needed) {
-      co = co.slice(0, needed);
-    }
-
     setCheckInForm(prev => ({
       ...prev,
       num_adults: adults,
-      co_guests: co,
+      co_guests: syncCoGuests(adults, prev.num_children, prev),
+    }));
+  };
+
+  const handleChildrenChange = (newCountVal) => {
+    if (newCountVal === '' || newCountVal === null || newCountVal === undefined) {
+      setCheckInForm(prev => ({
+        ...prev,
+        num_children: '',
+        co_guests: syncCoGuests(prev.num_adults, '', prev),
+      }));
+      return;
+    }
+    const children = Math.max(0, parseInt(newCountVal, 10) || 0);
+    setCheckInForm(prev => ({
+      ...prev,
+      num_children: children,
+      co_guests: syncCoGuests(prev.num_adults, children, prev),
     }));
   };
 
@@ -266,14 +325,15 @@ export default function FrontOfficeWorkspace() {
       city: 'Mumbai',
       state: 'Maharashtra',
       country: 'India',
-      purpose_of_visit: 'Corporate Business / Tech Conference',
+      purpose_of_visit: 'Corporate Business / Family Vacation',
       room_id: availRoom ? availRoom.id : '',
       check_in_at: formatDateTimeLocal(now),
       expected_check_out_at: formatDateTimeLocal(checkOut),
       num_adults: 2,
-      num_children: 0,
+      num_children: 1,
       co_guests: [
         {
+          guest_category: 'ADULT',
           first_name: 'Pooja',
           last_name: 'Sharma',
           gender: 'FEMALE',
@@ -283,6 +343,26 @@ export default function FrontOfficeWorkspace() {
           id_number: '9876-1234-5678',
           relationship: 'Spouse',
           nationality: 'Indian',
+          address: 'Flat 402, Sea Green Heights, Bandra West',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          country: 'India',
+        },
+        {
+          guest_category: 'CHILD',
+          first_name: 'Aarav',
+          last_name: 'Sharma',
+          gender: 'MALE',
+          age: 6,
+          phone: '+91 98765 43210',
+          id_type: 'AADHAAR',
+          id_number: 'BAL-5432-8765',
+          relationship: 'Child',
+          nationality: 'Indian',
+          address: 'Flat 402, Sea Green Heights, Bandra West',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          country: 'India',
         }
       ],
       special_requests: 'High floor, quiet corner room, extra pillows',
@@ -389,29 +469,42 @@ export default function FrontOfficeWorkspace() {
     }
 
     const adultsCount = parseInt(checkInForm.num_adults, 10) || 1;
-    if (adultsCount > 1) {
+    const childrenCount = parseInt(checkInForm.num_children, 10) || 0;
+    const neededAdditionalOccupants = Math.max(0, adultsCount - 1) + Math.max(0, childrenCount);
+
+    if (neededAdditionalOccupants > 0) {
       const co = checkInForm.co_guests || [];
-      const needed = adultsCount - 1;
-      if (co.length < needed) {
-        setActionError(`Please fill all required KYC details for all ${adultsCount} occupants staying in the room.`);
+      if (co.length < neededAdditionalOccupants) {
+        setActionError(`Please fill all required KYC and address details for all ${adultsCount + childrenCount} occupants staying in the room.`);
         return;
       }
-      for (let i = 0; i < needed; i++) {
+      for (let i = 0; i < neededAdditionalOccupants; i++) {
         const g = co[i];
+        const isChild = g.guest_category === 'CHILD';
+        const label = isChild ? `Child Occupant #${i + 1}` : `Additional Adult #${i + 2}`;
+
         if (!g.first_name || !g.first_name.trim() || !g.last_name || !g.last_name.trim()) {
-          setActionError(`Guest #${i + 2}: Full Name (First and Last) is required.`);
+          setActionError(`${label}: Full Name (First and Last) is required.`);
           return;
         }
-        if (!g.age || parseInt(g.age, 10) < 1) {
-          setActionError(`Guest #${i + 2}: Valid Age is required.`);
+        if (g.age === '' || g.age === null || isNaN(g.age) || parseInt(g.age, 10) < 0) {
+          setActionError(`${label}: Valid Age is required.`);
           return;
         }
-        if (!g.phone || !g.phone.trim()) {
-          setActionError(`Guest #${i + 2}: Contact Mobile Number is required.`);
+        if (!isChild && (!g.phone || !g.phone.trim())) {
+          setActionError(`${label}: Contact Mobile Number is required.`);
           return;
         }
         if (!g.id_number || !g.id_number.trim()) {
-          setActionError(`Guest #${i + 2}: ID Document Number is required.`);
+          setActionError(`${label}: ID / Document Number is required.`);
+          return;
+        }
+        if (!g.address || !g.address.trim()) {
+          setActionError(`${label}: Permanent Residential Address is required.`);
+          return;
+        }
+        if (!g.country || !g.country.trim()) {
+          setActionError(`${label}: Country is required.`);
           return;
         }
       }
@@ -2208,7 +2301,7 @@ export default function FrontOfficeWorkspace() {
                         <span>Adults *</span>
                         {parseInt(checkInForm.num_adults, 10) > 1 && (
                           <span style={{ fontSize: '10.5px', color: '#ea580c', fontWeight: '700' }}>
-                            {parseInt(checkInForm.num_adults, 10) - 1} Co-Guest KYC Req.
+                            {parseInt(checkInForm.num_adults, 10) - 1} Adult KYC Req.
                           </span>
                         )}
                       </label>
@@ -2224,13 +2317,21 @@ export default function FrontOfficeWorkspace() {
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Children</label>
+                      <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>Children</span>
+                        {parseInt(checkInForm.num_children, 10) > 0 && (
+                          <span style={{ fontSize: '10.5px', color: '#ea580c', fontWeight: '700' }}>
+                            {checkInForm.num_children} Child KYC Req.
+                          </span>
+                        )}
+                      </label>
                       <input
                         type="number"
                         min="0"
+                        max="10"
                         className="form-control"
                         value={checkInForm.num_children}
-                        onChange={(e) => setCheckInForm({ ...checkInForm, num_children: e.target.value })}
+                        onChange={(e) => handleChildrenChange(e.target.value)}
                       />
                     </div>
 
@@ -2246,8 +2347,8 @@ export default function FrontOfficeWorkspace() {
                   </div>
                 </div>
 
-                {/* SECTION 3.B: MANDATORY ADDITIONAL OCCUPANTS KYC (ALL ROOM GUESTS) */}
-                {parseInt(checkInForm.num_adults, 10) > 1 && (
+                {/* SECTION 3.B: MANDATORY ADDITIONAL OCCUPANTS KYC (ADULTS & CHILDREN) */}
+                {(parseInt(checkInForm.num_adults, 10) > 1 || parseInt(checkInForm.num_children, 10) > 0 || (checkInForm.co_guests && checkInForm.co_guests.length > 0)) && (
                   <div
                     className="wizard-section"
                     style={{
@@ -2264,7 +2365,7 @@ export default function FrontOfficeWorkspace() {
                           👥
                         </span>
                         <span style={{ fontWeight: '800', fontSize: '15px' }}>
-                          Mandatory Additional Room Occupants KYC ({checkInForm.co_guests?.length || (parseInt(checkInForm.num_adults, 10) - 1)} Additional Guests)
+                          Mandatory Additional Room Occupants KYC ({checkInForm.co_guests?.length || 0} Total Occupants: {parseInt(checkInForm.num_adults, 10) > 1 ? `${parseInt(checkInForm.num_adults, 10) - 1} Adult(s)` : ''}{parseInt(checkInForm.num_adults, 10) > 1 && parseInt(checkInForm.num_children, 10) > 0 ? ', ' : ''}{parseInt(checkInForm.num_children, 10) > 0 ? `${checkInForm.num_children} Child(ren)` : ''})
                         </span>
                       </div>
                       <span className="badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontWeight: '700', padding: '4px 10px' }}>
@@ -2273,148 +2374,266 @@ export default function FrontOfficeWorkspace() {
                     </div>
 
                     <p style={{ fontSize: '12.5px', color: '#7c2d12', marginBottom: '16px', lineHeight: 1.5 }}>
-                      Room occupancy is set to <strong>{checkInForm.num_adults} Adults</strong>. Per Government & Police Regulations, complete KYC and ID verification details are mandatory for <strong>every single occupant</strong> staying in the room.
+                      Room occupancy is set to <strong>{checkInForm.num_adults || 1} Adult(s)</strong> and <strong>{checkInForm.num_children || 0} Child(ren)</strong> ({ (parseInt(checkInForm.num_adults, 10) || 1) + (parseInt(checkInForm.num_children, 10) || 0) } Total Room Occupants). Per Government & Police Regulations, complete KYC, ID verification, and residential address are mandatory for <strong>every single occupant</strong> staying in the room.
                     </p>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {checkInForm.co_guests?.map((guest, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            background: '#ffffff',
-                            border: '1.5px solid #fed7aa',
-                            borderRadius: '10px',
-                            padding: '16px',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #fef3c7', paddingBottom: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ background: '#ea580c', color: '#fff', fontSize: '11px', fontWeight: '800', borderRadius: '50%', width: '22px', height: '22px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {idx + 2}
-                              </span>
-                              <strong style={{ fontSize: '13.5px', color: '#1e293b' }}>
-                                Additional Guest #{idx + 2} Details *
-                              </strong>
-                            </div>
-                            <span style={{ fontSize: '11px', color: '#ea580c', fontWeight: '600' }}>
-                              Required Document & Contact Info
-                            </span>
-                          </div>
+                      {checkInForm.co_guests?.map((guest, idx) => {
+                        const isChild = guest.guest_category === 'CHILD';
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              background: '#ffffff',
+                              border: isChild ? '1.5px solid #bfdbfe' : '1.5px solid #fed7aa',
+                              borderRadius: '10px',
+                              padding: '16px',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{
+                                  background: isChild ? '#0284c7' : '#ea580c',
+                                  color: '#fff',
+                                  fontSize: '11px',
+                                  fontWeight: '800',
+                                  borderRadius: '50%',
+                                  width: '24px',
+                                  height: '24px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}>
+                                  {idx + 2}
+                                </span>
+                                <div>
+                                  <strong style={{ fontSize: '13.5px', color: '#1e293b' }}>
+                                    {isChild ? `👶 Child Occupant Details (Age < 18) *` : `👥 Additional Adult Guest Details *`}
+                                  </strong>
+                                  <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>
+                                    (Occupant #{idx + 2})
+                                  </span>
+                                </div>
+                              </div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                              <label className="form-label">First Name *</label>
-                              <input
-                                type="text"
-                                required
-                                placeholder="e.g. Pooja"
-                                className="form-control"
-                                value={guest.first_name || ''}
-                                onChange={(e) => handleCoGuestChange(idx, 'first_name', e.target.value)}
-                              />
-                            </div>
-
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                              <label className="form-label">Last Name *</label>
-                              <input
-                                type="text"
-                                required
-                                placeholder="e.g. Sharma"
-                                className="form-control"
-                                value={guest.last_name || ''}
-                                onChange={(e) => handleCoGuestChange(idx, 'last_name', e.target.value)}
-                              />
-                            </div>
-
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                              <label className="form-label">Gender *</label>
-                              <select
-                                className="form-select"
-                                required
-                                value={guest.gender || 'FEMALE'}
-                                onChange={(e) => handleCoGuestChange(idx, 'gender', e.target.value)}
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '11px', padding: '3px 10px', borderColor: '#cbd5e1', color: '#0f172a', background: '#f8fafc' }}
+                                onClick={() => {
+                                  const updated = [...(checkInForm.co_guests || [])];
+                                  if (updated[idx]) {
+                                    updated[idx] = {
+                                      ...updated[idx],
+                                      address: checkInForm.address || '',
+                                      city: checkInForm.city || '',
+                                      state: checkInForm.state || '',
+                                      country: checkInForm.country || 'India',
+                                      phone: updated[idx].phone || checkInForm.phone || '',
+                                    };
+                                    setCheckInForm(prev => ({ ...prev, co_guests: updated }));
+                                  }
+                                }}
                               >
-                                <option value="FEMALE">Female</option>
-                                <option value="MALE">Male</option>
-                                <option value="OTHER">Other</option>
-                              </select>
+                                📋 Copy Primary Guest Address & Phone
+                              </button>
                             </div>
 
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                              <label className="form-label">Age *</label>
-                              <input
-                                type="number"
-                                required
-                                min="1"
-                                max="120"
-                                placeholder="e.g. 26"
-                                className="form-control"
-                                value={guest.age || ''}
-                                onChange={(e) => handleCoGuestChange(idx, 'age', e.target.value)}
-                              />
+                            {/* Row 1: Name, Gender, Age */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label">First Name *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder={isChild ? "e.g. Aarav" : "e.g. Pooja"}
+                                  className="form-control"
+                                  value={guest.first_name || ''}
+                                  onChange={(e) => handleCoGuestChange(idx, 'first_name', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label">Last Name *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="e.g. Sharma"
+                                  className="form-control"
+                                  value={guest.last_name || ''}
+                                  onChange={(e) => handleCoGuestChange(idx, 'last_name', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label">Gender *</label>
+                                <select
+                                  className="form-select"
+                                  required
+                                  value={guest.gender || 'FEMALE'}
+                                  onChange={(e) => handleCoGuestChange(idx, 'gender', e.target.value)}
+                                >
+                                  <option value="FEMALE">Female</option>
+                                  <option value="MALE">Male</option>
+                                  <option value="OTHER">Other</option>
+                                </select>
+                              </div>
+
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label">Age *</label>
+                                <input
+                                  type="number"
+                                  required
+                                  min="0"
+                                  max={isChild ? "17" : "120"}
+                                  placeholder={isChild ? "e.g. 6" : "e.g. 26"}
+                                  className="form-control"
+                                  value={guest.age || ''}
+                                  onChange={(e) => handleCoGuestChange(idx, 'age', e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Row 2: Relationship, ID Type, Document Number, Phone */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.2fr 1.3fr 1.1fr', gap: '12px', marginBottom: '12px' }}>
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label">Relationship *</label>
+                                <select
+                                  className="form-select"
+                                  required
+                                  value={guest.relationship || (isChild ? 'Child' : 'Spouse')}
+                                  onChange={(e) => handleCoGuestChange(idx, 'relationship', e.target.value)}
+                                >
+                                  {isChild ? (
+                                    <>
+                                      <option value="Child">Child (Son / Daughter)</option>
+                                      <option value="Dependent">Dependent Minor</option>
+                                      <option value="Family">Family Member</option>
+                                      <option value="Other">Other</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="Spouse">Spouse / Partner</option>
+                                      <option value="Family">Family Member</option>
+                                      <option value="Friend">Friend</option>
+                                      <option value="Colleague">Colleague / Business</option>
+                                      <option value="Other">Other</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label">ID Type *</label>
+                                <select
+                                  className="form-select"
+                                  required
+                                  value={guest.id_type || 'AADHAAR'}
+                                  onChange={(e) => handleCoGuestChange(idx, 'id_type', e.target.value)}
+                                >
+                                  {isChild ? (
+                                    <>
+                                      <option value="AADHAAR">Aadhaar / Bal Aadhaar Card</option>
+                                      <option value="BIRTH_CERTIFICATE">Birth Certificate</option>
+                                      <option value="SCHOOL_ID">School ID Card</option>
+                                      <option value="PASSPORT">Passport</option>
+                                      <option value="PARENT_ID">Parent ID (Linked to Primary)</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="AADHAAR">Aadhaar Card (UIDAI)</option>
+                                      <option value="PASSPORT">Passport</option>
+                                      <option value="DRIVING_LICENSE">Driving License</option>
+                                      <option value="VOTER_ID">Voter ID Card</option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label">ID / Document Number *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder={isChild ? "Aadhaar / Birth Cert / Parent ID #" : "Document ID Number"}
+                                  className="form-control"
+                                  value={guest.id_number || ''}
+                                  onChange={(e) => handleCoGuestChange(idx, 'id_number', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label">Contact / Mobile *</label>
+                                <input
+                                  type="tel"
+                                  required
+                                  placeholder={isChild ? "Parent Mobile Number" : "Mobile Number"}
+                                  className="form-control"
+                                  value={guest.phone || ''}
+                                  onChange={(e) => handleCoGuestChange(idx, 'phone', e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Row 3: FULL RESIDENTIAL ADDRESS DETAILS FOR EACH OCCUPANT */}
+                            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1' }}>
+                              <div style={{ fontSize: '11px', fontWeight: '700', color: isChild ? '#0284c7' : '#9a3412', textTransform: 'uppercase', marginBottom: '6px' }}>
+                                📍 Residential Address (as on ID / Document) *
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: '10px' }}>
+                                <div className="form-group" style={{ marginBottom: 0 }}>
+                                  <label className="form-label" style={{ fontSize: '11px' }}>Permanent Address *</label>
+                                  <input
+                                    type="text"
+                                    required
+                                    placeholder="Permanent address as per ID"
+                                    className="form-control"
+                                    value={guest.address || ''}
+                                    onChange={(e) => handleCoGuestChange(idx, 'address', e.target.value)}
+                                  />
+                                </div>
+
+                                <div className="form-group" style={{ marginBottom: 0 }}>
+                                  <label className="form-label" style={{ fontSize: '11px' }}>City *</label>
+                                  <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. Mumbai"
+                                    className="form-control"
+                                    value={guest.city || ''}
+                                    onChange={(e) => handleCoGuestChange(idx, 'city', e.target.value)}
+                                  />
+                                </div>
+
+                                <div className="form-group" style={{ marginBottom: 0 }}>
+                                  <label className="form-label" style={{ fontSize: '11px' }}>State *</label>
+                                  <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. Maharashtra"
+                                    className="form-control"
+                                    value={guest.state || ''}
+                                    onChange={(e) => handleCoGuestChange(idx, 'state', e.target.value)}
+                                  />
+                                </div>
+
+                                <div className="form-group" style={{ marginBottom: 0 }}>
+                                  <label className="form-label" style={{ fontSize: '11px' }}>Country *</label>
+                                  <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. India"
+                                    className="form-control"
+                                    value={guest.country || 'India'}
+                                    onChange={(e) => handleCoGuestChange(idx, 'country', e.target.value)}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.2fr 1.3fr 1.1fr', gap: '12px' }}>
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                              <label className="form-label">Relationship *</label>
-                              <select
-                                className="form-select"
-                                required
-                                value={guest.relationship || 'Spouse'}
-                                onChange={(e) => handleCoGuestChange(idx, 'relationship', e.target.value)}
-                              >
-                                <option value="Spouse">Spouse / Partner</option>
-                                <option value="Family">Family Member</option>
-                                <option value="Child">Child / Dependent</option>
-                                <option value="Friend">Friend</option>
-                                <option value="Colleague">Colleague / Business</option>
-                                <option value="Other">Other</option>
-                              </select>
-                            </div>
-
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                              <label className="form-label">ID Type *</label>
-                              <select
-                                className="form-select"
-                                required
-                                value={guest.id_type || 'AADHAAR'}
-                                onChange={(e) => handleCoGuestChange(idx, 'id_type', e.target.value)}
-                              >
-                                <option value="AADHAAR">Aadhaar Card (UIDAI)</option>
-                                <option value="PASSPORT">Passport</option>
-                                <option value="DRIVING_LICENSE">Driving License</option>
-                                <option value="VOTER_ID">Voter ID Card</option>
-                              </select>
-                            </div>
-
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                              <label className="form-label">ID / Document Number *</label>
-                              <input
-                                type="text"
-                                required
-                                placeholder="Document ID Number"
-                                className="form-control"
-                                value={guest.id_number || ''}
-                                onChange={(e) => handleCoGuestChange(idx, 'id_number', e.target.value)}
-                              />
-                            </div>
-
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                              <label className="form-label">Mobile Number *</label>
-                              <input
-                                type="tel"
-                                required
-                                placeholder="e.g. 9876543210"
-                                className="form-control"
-                                value={guest.phone || ''}
-                                onChange={(e) => handleCoGuestChange(idx, 'phone', e.target.value)}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -2604,7 +2823,7 @@ export default function FrontOfficeWorkspace() {
                     <div style={{ marginTop: '3px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {(showFolioModal.booking_guests || showFolioModal.co_guests).map((cg, idx) => (
                         <span key={idx} style={{ background: '#ffedd5', padding: '2px 8px', borderRadius: '4px', fontWeight: '500' }}>
-                          #{idx + 2} {cg.first_name} {cg.last_name} ({cg.gender || 'Guest'}, {cg.age ? `Age ${cg.age}` : ''}) &bull; {cg.id_type || 'ID'}: {cg.id_number}
+                          #{idx + 2} {cg.first_name} {cg.last_name} ({cg.guest_category === 'CHILD' ? 'Child' : (cg.relationship || 'Adult')}, {cg.gender || 'Guest'}, {cg.age ? `Age ${cg.age}` : ''}) &bull; {cg.id_type || 'ID'}: {cg.id_number} {cg.city ? `&bull; ${cg.city}` : ''}
                         </span>
                       ))}
                     </div>

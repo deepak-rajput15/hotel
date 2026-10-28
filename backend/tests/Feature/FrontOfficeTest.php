@@ -335,7 +335,7 @@ class FrontOfficeTest extends TestCase
             ->assertJsonPath('success', false);
         $this->assertStringContainsString('Details for all occupants are required', $missingGuestRes->json('message'));
 
-        // 2. Room with 2 adults and complete KYC for 2nd occupant -> Accepted (201 Created)!
+        // 2. Room with 2 adults + 1 child and complete KYC and addresses for all occupants -> Accepted (201 Created)!
         $validRes = $this->actingAs($frontDeskStaff)
             ->withHeaders(['X-Hotel-ID' => $hotel->id])
             ->postJson('/api/v1/front-office/check-in', [
@@ -351,8 +351,10 @@ class FrontOfficeTest extends TestCase
                 'country' => 'India',
                 'room_id' => $room->id,
                 'num_adults' => 2,
+                'num_children' => 1,
                 'co_guests' => [
                     [
+                        'guest_category' => 'ADULT',
                         'first_name' => 'Pooja',
                         'last_name' => 'Kapoor',
                         'gender' => 'FEMALE',
@@ -362,6 +364,26 @@ class FrontOfficeTest extends TestCase
                         'id_number' => '9876-5432-1098',
                         'relationship' => 'Spouse',
                         'nationality' => 'Indian',
+                        'address' => '10 Marine Drive',
+                        'city' => 'Mumbai',
+                        'state' => 'Maharashtra',
+                        'country' => 'India',
+                    ],
+                    [
+                        'guest_category' => 'CHILD',
+                        'first_name' => 'Aarav',
+                        'last_name' => 'Kapoor',
+                        'gender' => 'MALE',
+                        'age' => 6,
+                        'phone' => '+91 98888 11223',
+                        'id_type' => 'AADHAAR',
+                        'id_number' => 'BAL-9988-7766',
+                        'relationship' => 'Child',
+                        'nationality' => 'Indian',
+                        'address' => '10 Marine Drive',
+                        'city' => 'Mumbai',
+                        'state' => 'Maharashtra',
+                        'country' => 'India',
                     ],
                 ],
                 'expected_check_out_at' => Carbon::now()->addDay()->toDateTimeString(),
@@ -376,13 +398,29 @@ class FrontOfficeTest extends TestCase
             'country' => 'India',
         ]);
 
-        // Verify co-guest is saved in booking_guests table
+        // Verify adult co-guest is saved in booking_guests table with address
         $this->assertDatabaseHas('booking_guests', [
             'booking_id' => $bookingId,
+            'guest_category' => 'ADULT',
             'first_name' => 'Pooja',
             'last_name' => 'Kapoor',
             'id_number' => '9876-5432-1098',
             'relationship' => 'Spouse',
+            'city' => 'Mumbai',
+            'country' => 'India',
+        ]);
+
+        // Verify child co-guest is saved in booking_guests table with address
+        $this->assertDatabaseHas('booking_guests', [
+            'booking_id' => $bookingId,
+            'guest_category' => 'CHILD',
+            'first_name' => 'Aarav',
+            'last_name' => 'Kapoor',
+            'age' => 6,
+            'id_number' => 'BAL-9988-7766',
+            'relationship' => 'Child',
+            'city' => 'Mumbai',
+            'country' => 'India',
         ]);
     }
 }

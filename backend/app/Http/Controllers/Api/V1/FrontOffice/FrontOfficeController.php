@@ -631,17 +631,22 @@ class FrontOfficeController extends Controller
             'num_children' => 'nullable|integer|min:0',
             'special_requests' => 'nullable|string',
 
-            // Additional Co-Guests KYC (Mandatory for all occupants in room)
+            // Additional Co-Guests KYC (Mandatory for all occupants: Adults & Children)
             'co_guests' => 'nullable|array',
+            'co_guests.*.guest_category' => 'nullable|string|in:ADULT,CHILD,Adult,Child',
             'co_guests.*.first_name' => 'required|string|max:100',
             'co_guests.*.last_name' => 'required|string|max:100',
             'co_guests.*.gender' => 'required|string|in:MALE,FEMALE,OTHER,Male,Female,Other',
-            'co_guests.*.age' => 'required|integer|min:1|max:120',
-            'co_guests.*.id_type' => 'required|in:AADHAAR,PASSPORT,DRIVING_LICENSE,VOTER_ID',
+            'co_guests.*.age' => 'required|integer|min:0|max:120',
+            'co_guests.*.id_type' => 'nullable|string|max:50',
             'co_guests.*.id_number' => 'required|string|max:100',
             'co_guests.*.phone' => 'nullable|string|max:30',
             'co_guests.*.relationship' => 'nullable|string|max:50',
             'co_guests.*.nationality' => 'nullable|string|max:100',
+            'co_guests.*.address' => 'nullable|string|max:255',
+            'co_guests.*.city' => 'nullable|string|max:100',
+            'co_guests.*.state' => 'nullable|string|max:100',
+            'co_guests.*.country' => 'nullable|string|max:100',
 
             // Tariff & Billing
             'room_rate_per_night' => 'nullable|numeric|min:0',
@@ -739,15 +744,17 @@ class FrontOfficeController extends Controller
                 'purpose_of_visit' => $validated['purpose_of_visit'] ?? 'Business / Leisure',
             ]);
 
-            // 2. Validate Multi-Occupant Co-Guests (All guests in room must be registered)
+            // 2. Validate Multi-Occupant Co-Guests (Both additional adults AND children)
             $adultCount = (int) ($validated['num_adults'] ?? 1);
+            $childrenCount = (int) ($validated['num_children'] ?? 0);
+            $neededAdditionalOccupants = max(0, $adultCount - 1) + max(0, $childrenCount);
             $coGuests = $validated['co_guests'] ?? [];
 
-            if ($request->has('co_guests') && $adultCount > 1 && count($coGuests) < ($adultCount - 1)) {
-                $missing = ($adultCount - 1) - count($coGuests);
+            if ($request->has('co_guests') && $neededAdditionalOccupants > 0 && count($coGuests) < $neededAdditionalOccupants) {
+                $missing = $neededAdditionalOccupants - count($coGuests);
                 return response()->json([
                     'success' => false,
-                    'message' => "Room has {$adultCount} adult occupants. Details for all occupants are required. Please provide full KYC details for the remaining {$missing} guest(s).",
+                    'message' => "Room has {$adultCount} adult(s) and {$childrenCount} child(ren) ({$neededAdditionalOccupants} additional occupants total). Details for all occupants are required (Full KYC & Address). Missing details for {$missing} occupant(s).",
                 ], 422);
             }
 
@@ -799,15 +806,20 @@ class FrontOfficeController extends Controller
                 BookingGuest::create([
                     'booking_id' => $booking->id,
                     'hotel_id' => $hotel->id,
+                    'guest_category' => strtoupper($cg['guest_category'] ?? 'ADULT'),
                     'first_name' => $cg['first_name'],
                     'last_name' => $cg['last_name'],
                     'gender' => strtoupper($cg['gender'] ?? 'MALE'),
                     'age' => (int) $cg['age'],
                     'phone' => $cg['phone'] ?? null,
-                    'id_type' => $cg['id_type'],
+                    'id_type' => $cg['id_type'] ?? 'AADHAAR',
                     'id_number' => $cg['id_number'],
                     'relationship' => $cg['relationship'] ?? 'Family',
                     'nationality' => $cg['nationality'] ?? ($validated['nationality'] ?? 'India'),
+                    'address' => $cg['address'] ?? ($validated['address'] ?? null),
+                    'city' => $cg['city'] ?? ($validated['city'] ?? null),
+                    'state' => $cg['state'] ?? ($validated['state'] ?? null),
+                    'country' => $cg['country'] ?? ($validated['country'] ?? 'India'),
                 ]);
             }
 
