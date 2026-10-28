@@ -97,6 +97,16 @@ class Hotel extends Model
         return $this->hasMany(\App\Domain\Purchase\Models\Supplier::class);
     }
 
+    public function purchaseOrders(): HasMany
+    {
+        return $this->hasMany(\App\Domain\Purchase\Models\PurchaseOrder::class);
+    }
+
+    public function goodsReceiptNotes(): HasMany
+    {
+        return $this->hasMany(\App\Domain\Purchase\Models\GoodsReceiptNote::class);
+    }
+
     public function products(): HasMany
     {
         return $this->hasMany(\App\Domain\Store\Models\Product::class);
@@ -105,6 +115,21 @@ class Hotel extends Model
     public function restaurantTables(): HasMany
     {
         return $this->hasMany(\App\Domain\Restaurant\Models\RestaurantTable::class);
+    }
+
+    public function menuCategories(): HasMany
+    {
+        return $this->hasMany(\App\Domain\Restaurant\Models\MenuCategory::class);
+    }
+
+    public function menuItems(): HasMany
+    {
+        return $this->hasMany(\App\Domain\Restaurant\Models\MenuItem::class);
+    }
+
+    public function restaurantOrders(): HasMany
+    {
+        return $this->hasMany(\App\Domain\Restaurant\Models\RestaurantOrder::class);
     }
 
     /**

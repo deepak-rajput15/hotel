@@ -111,6 +111,18 @@ class HotelStaffController extends Controller
             return response()->json(['success' => false, 'message' => 'You do not have administrative permission for this hotel property.'], 403);
         }
 
+        // Only Organization Owner, Platform Super Admin, or assigned General Manager can create staff
+        $userRole = $user->hotelAccess()->where('hotel_id', $hotel->id)->with('role')->first()?->role?->slug;
+        $isAuthorized = $user->isPlatformAdmin() || $user->isOrgOwner() || $userRole === 'general-manager';
+
+        if (!$isAuthorized) {
+            return response()->json([
+                'success' => false,
+                'error_code' => 'FORBIDDEN_STAFF_MANAGEMENT',
+                'message' => 'Only the Hotel Owner and General Manager have permission to manage hotel staff.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:150',
             'email' => 'required|email|max:150|unique:users,email',

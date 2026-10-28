@@ -86,21 +86,22 @@ class Booking extends Model
     public function recalculateTotals(): self
     {
         $roomCharges = (float) $this->total_room_charges;
+        $roomGstRate = (float) ($this->room?->gst_percentage ?? 12.00) / 100;
+        $taxableRoomCharges = max(0, $roomCharges - (float) $this->discount_amount);
+        $roomTax = round($taxableRoomCharges * $roomGstRate, 2);
+
         $extraCharges = (float) $this->folioItems()
             ->where('item_type', '!=', 'ROOM_CHARGE')
             ->sum('total_price');
 
         $this->total_extra_charges = $extraCharges;
-        $subtotal = ($roomCharges + $extraCharges) - (float) $this->discount_amount;
+        $this->tax_amount = $roomTax;
+        $this->grand_total = $taxableRoomCharges + $roomTax + $extraCharges;
 
-        // 12% GST standard
-        $tax = round($subtotal * 0.12, 2);
-        $this->tax_amount = $tax;
-        $this->grand_total = $subtotal + $tax;
-
-        $paid = (float) $this->payments()->sum('amount');
+        $paymentsSum = (float) $this->payments()->sum('amount');
+        $paid = $this->payments()->exists() ? $paymentsSum : (float) $this->paid_amount;
         $this->paid_amount = $paid;
-        $this->balance_amount = max(0, $this->grand_total - $paid);
+        $this->balance_amount = max(0, round($this->grand_total - $paid, 2));
 
         if ($this->balance_amount <= 0 && $this->grand_total > 0) {
             $this->payment_status = 'PAID';

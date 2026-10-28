@@ -7,16 +7,13 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\FrontOffice\FrontOfficeController;
 use App\Http\Controllers\Api\V1\Hotel\HotelModuleController;
 use App\Http\Controllers\Api\V1\Hotel\HotelStaffController;
+use App\Http\Controllers\Api\V1\Kitchen\KitchenKdsController;
 use App\Http\Controllers\Api\V1\Modules\TestModuleController;
-use Illuminate\Support\Facades\Route;
-
-/*
-|--------------------------------------------------------------------------
-| Hotel SaaS API Routes (v1)
-|--------------------------------------------------------------------------
-*/
-
+use App\Http\Controllers\Api\V1\Purchase\PurchaseOrdersController;
+use App\Http\Controllers\Api\V1\Reports\ReportsController;
+use App\Http\Controllers\Api\V1\Restaurant\RestaurantPosController;
 use App\Http\Controllers\Api\V1\Store\StoreInventoryController;
+use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
 
@@ -49,6 +46,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('/bookings', [FrontOfficeController::class, 'bookings']);
                 Route::get('/bookings/{id}', [FrontOfficeController::class, 'bookingDetail']);
                 Route::post('/check-in', [FrontOfficeController::class, 'checkIn']);
+                Route::post('/bookings/{id}/confirm-check-in', [FrontOfficeController::class, 'confirmCheckIn']);
                 Route::post('/bookings/{id}/folio-items', [FrontOfficeController::class, 'addFolioCharge']);
                 Route::post('/bookings/{id}/payments', [FrontOfficeController::class, 'recordPayment']);
                 Route::post('/bookings/{id}/check-out', [FrontOfficeController::class, 'checkOut']);
@@ -64,9 +62,52 @@ Route::prefix('v1')->group(function () {
                 Route::post('/suppliers', [StoreInventoryController::class, 'storeSupplier']);
             });
 
-            // Restaurant routes
+            // Purchase & Vendor Procurement routes (PO Generation, Vendor Tracking, GRN Receiving)
+            Route::prefix('purchase')->middleware('module:purchase')->group(function () {
+                Route::get('/orders', [PurchaseOrdersController::class, 'index']);
+                Route::get('/orders/{id}', [PurchaseOrdersController::class, 'show']);
+                Route::post('/orders', [PurchaseOrdersController::class, 'store']);
+                Route::post('/orders/{id}/receive-goods', [PurchaseOrdersController::class, 'receiveGoods']);
+                Route::get('/grn', [PurchaseOrdersController::class, 'grnList']);
+            });
+
+            // Restaurant & POS routes (Tables, Menu, KOT Orders, Settlement, Room Service)
             Route::prefix('restaurant')->middleware('module:restaurant')->group(function () {
-                Route::get('/orders', [TestModuleController::class, 'restaurantOrders']);
+                // Tables
+                Route::get('/tables', [RestaurantPosController::class, 'tables']);
+                Route::post('/tables', [RestaurantPosController::class, 'storeTable']);
+                Route::put('/tables/{id}/status', [RestaurantPosController::class, 'updateTableStatus']);
+
+                // Menu
+                Route::get('/menu', [RestaurantPosController::class, 'menu']);
+                Route::post('/menu/items', [RestaurantPosController::class, 'storeMenuItem']);
+                Route::put('/menu/items/{id}', [RestaurantPosController::class, 'updateMenuItem']);
+
+                // Orders & KOT
+                Route::get('/orders', [RestaurantPosController::class, 'orders']);
+                Route::get('/orders/{id}', [RestaurantPosController::class, 'orderDetail']);
+                Route::post('/orders', [RestaurantPosController::class, 'createOrder']);
+                Route::post('/orders/{id}/items', [RestaurantPosController::class, 'addOrderItems']);
+                Route::post('/orders/{id}/settle', [RestaurantPosController::class, 'settleOrder']);
+
+                // In-house rooms for Room Service / Folio Posting
+                Route::get('/in-house-rooms', [RestaurantPosController::class, 'inHouseRooms']);
+            });
+
+            // Kitchen Display System (KDS) routes (Live KOTs, Preparation Queue, Item Status Updates)
+            Route::prefix('kitchen')->middleware('module:kitchen')->group(function () {
+                Route::get('/kots', [KitchenKdsController::class, 'liveKots']);
+                Route::get('/summary', [KitchenKdsController::class, 'summary']);
+                Route::put('/items/{itemId}/status', [KitchenKdsController::class, 'updateItemStatus']);
+                Route::put('/kots/{orderId}/{kotNumber}/status', [KitchenKdsController::class, 'updateKotStatus']);
+            });
+
+            // Reports & Analytics routes (Occupancy, Revenue, Guest Ledger Night Audit, Inventory, CSV Export)
+            Route::prefix('reports')->group(function () {
+                Route::get('/overview', [ReportsController::class, 'overview']);
+                Route::get('/guest-ledger', [ReportsController::class, 'guestLedger']);
+                Route::get('/inventory', [ReportsController::class, 'inventory']);
+                Route::get('/export', [ReportsController::class, 'exportCsv']);
             });
         });
 

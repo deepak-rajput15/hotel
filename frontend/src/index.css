@@ -536,3 +536,32 @@ input:checked + .toggle-slider:before {
   from { transform: scale(0.97); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
+
+/* Print Stylesheet for Reports & Night Audit Invoicing */
+@media print {
+  .sidebar,
+  .top-navbar,
+  .btn,
+  .form-select,
+  .form-input {
+    display: none !important;
+  }
+
+  body,
+  .app-container,
+  .main-content,
+  .page-body,
+  .reports-workspace {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

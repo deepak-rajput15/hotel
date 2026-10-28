@@ -5,6 +5,10 @@ import ConsolidatedPortfolioView from './ConsolidatedPortfolioView';
 import StaffManagementTab from './StaffManagementTab';
 import FrontOfficeWorkspace from '../FrontOffice/FrontOfficeWorkspace';
 import StoreInventoryWorkspace from '../Store/StoreInventoryWorkspace';
+import PurchaseOrdersWorkspace from '../Purchase/PurchaseOrdersWorkspace';
+import ReportsWorkspace from '../Reports/ReportsWorkspace';
+import RestaurantPosWorkspace from '../Restaurant/RestaurantPosWorkspace';
+import KitchenDisplayWorkspace from '../Kitchen/KitchenDisplayWorkspace';
 import {
   Bed,
   ConciergeBell,
@@ -63,6 +67,13 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
         </div>
       );
     }
+    if (user.assigned_role.slug === 'restaurant-cashier') {
+      return (
+        <div className="page-body">
+          <RestaurantPosWorkspace />
+        </div>
+      );
+    }
     if (user.assigned_role.slug !== 'general-manager') {
       const roleAllowed = {
         'head-chef': 'kitchen',
@@ -74,6 +85,20 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
         return (
           <div className="page-body">
             <FrontOfficeWorkspace />
+          </div>
+        );
+      }
+      if (defaultMod === 'restaurant') {
+        return (
+          <div className="page-body">
+            <RestaurantPosWorkspace />
+          </div>
+        );
+      }
+      if (defaultMod === 'kitchen') {
+        return (
+          <div className="page-body">
+            <KitchenDisplayWorkspace />
           </div>
         );
       }
@@ -132,8 +157,8 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
   }
 
   // 4. Store & Inventory Management Route (Book1.xlsx Product & Stock Management)
-  if (activeTab === 'store' || activeTab === 'purchase') {
-    if (!isModuleActive('store') && !isModuleActive('purchase')) {
+  if (activeTab === 'store') {
+    if (!isModuleActive('store')) {
       return (
         <div className="page-body">
           <div className="card" style={{ textAlign: 'center', padding: '48px 24px' }}>
@@ -154,6 +179,96 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
     return (
       <div className="page-body">
         <StoreInventoryWorkspace />
+      </div>
+    );
+  }
+
+  // 5. Purchase Orders & GRN Procurement Route
+  if (activeTab === 'purchase') {
+    if (!isModuleActive('purchase')) {
+      return (
+        <div className="page-body">
+          <div className="card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--error-bg)', color: 'var(--error)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Lock size={28} />
+            </div>
+            <h3 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--t-900)' }}>
+              Purchase Orders & GRN Module Locked
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--t-500)', maxWidth: '420px', margin: '6px auto 16px' }}>
+              Property <strong>{currentHotel?.name} ({currentHotel?.hotel_code})</strong> does not have an active Purchase Orders subscription. Subscription must be toggled by the Platform Super Admin.
+            </p>
+            <span className="badge badge-inactive">Status: Subscription Inactive</span>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="page-body">
+        <PurchaseOrdersWorkspace />
+      </div>
+    );
+  }
+
+  // 5. Reports & Night Audit Route (Available to Owner & General Manager)
+  if (activeTab === 'reports') {
+    return (
+      <div className="page-body">
+        <ReportsWorkspace />
+      </div>
+    );
+  }
+
+  // 6. Restaurant & Dining POS Route
+  if (activeTab === 'restaurant') {
+    if (!isModuleActive('restaurant')) {
+      return (
+        <div className="page-body">
+          <div className="card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--error-bg)', color: 'var(--error)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Lock size={28} />
+            </div>
+            <h3 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--t-900)' }}>
+              Restaurant & POS Module Locked
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--t-500)', maxWidth: '420px', margin: '6px auto 16px' }}>
+              Property <strong>{currentHotel?.name} ({currentHotel?.hotel_code})</strong> does not have an active Restaurant subscription. Subscription must be toggled by the Platform Super Admin.
+            </p>
+            <span className="badge badge-inactive">Status: Subscription Inactive</span>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="page-body">
+        <RestaurantPosWorkspace />
+      </div>
+    );
+  }
+
+  // 7. Kitchen Display System (KDS / KOT) Route
+  if (activeTab === 'kitchen') {
+    if (!isModuleActive('kitchen')) {
+      return (
+        <div className="page-body">
+          <div className="card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--error-bg)', color: 'var(--error)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Lock size={28} />
+            </div>
+            <h3 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--t-900)' }}>
+              Kitchen (KOT) Module Locked
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--t-500)', maxWidth: '420px', margin: '6px auto 16px' }}>
+              Property <strong>{currentHotel?.name} ({currentHotel?.hotel_code})</strong> does not have an active Kitchen subscription. Subscription must be toggled by the Platform Super Admin.
+            </p>
+            <span className="badge badge-inactive">Status: Subscription Inactive</span>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="page-body">
+        <KitchenDisplayWorkspace />
       </div>
     );
   }

@@ -26,6 +26,38 @@ class StoreInventoryController extends Controller
     }
 
     /**
+     * Authorize that the user has permission to manage inventory and adjust stock.
+     */
+    protected function authorizeInventoryManagement(Request $request): void
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401, 'Unauthenticated.');
+        }
+
+        if ($user->isPlatformAdmin() || $user->isOrgOwner()) {
+            return;
+        }
+
+        $hotel = $this->getHotel($request);
+        $userRole = $user->hotelAccess()
+            ->where('hotel_id', $hotel->id)
+            ->with('role')
+            ->first()?->role?->slug;
+
+        $allowedRoles = ['storekeeper', 'store-manager', 'purchase-manager', 'general-manager', 'hotel-owner'];
+        if (in_array($userRole, $allowedRoles, true)) {
+            return;
+        }
+
+        abort(response()->json([
+            'success' => false,
+            'error_code' => 'FORBIDDEN_INVENTORY_ACTION',
+            'message' => 'Access Denied: Only Storekeepers, Purchase Managers, or General Managers can adjust stock or modify products.',
+        ], 403));
+    }
+
+    /**
      * List products with inventory metrics, filtering by category, search, and low-stock alerts.
      */
     public function products(Request $request): JsonResponse
@@ -190,7 +222,7 @@ class StoreInventoryController extends Controller
     public function adjustStock(Request $request, string $id): JsonResponse
     {
         $hotel = $this->getHotel($request);
-        $product = $hotel->products()->findOrFail($id);
+        $this->authorizeInventoryManagement($request);
 
         if (!$request->has('type') && $request->has('operation')) {
             $request->merge(['type' => $request->input('operation')]);
@@ -203,39 +235,43 @@ class StoreInventoryController extends Controller
             'notes' => 'nullable|string|max:255',
         ]);
 
-        $oldStock = (float) $product->current_stock;
-        $qty = (float) $validated['quantity'];
+        return DB::transaction(function () use ($hotel, $id, $validated) {
+            $product = $hotel->products()->where('id', $id)->lockForUpdate()->firstOrFail();
 
-        if ($validated['type'] === 'ADD') {
-            $newStock = $oldStock + $qty;
-        } elseif ($validated['type'] === 'SUBTRACT') {
-            if ($oldStock < $qty) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Cannot subtract {$qty} {$product->unit}. Current stock is only {$oldStock} {$product->unit}.",
-                ], 422);
+            $oldStock = (float) $product->current_stock;
+            $qty = (float) $validated['quantity'];
+
+            if ($validated['type'] === 'ADD') {
+                $newStock = $oldStock + $qty;
+            } elseif ($validated['type'] === 'SUBTRACT') {
+                if ($oldStock < $qty) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Cannot subtract {$qty} {$product->unit}. Current stock is only {$oldStock} {$product->unit}.",
+                    ], 422);
+                }
+                $newStock = $oldStock - $qty;
+            } else {
+                $newStock = $qty;
             }
-            $newStock = $oldStock - $qty;
-        } else {
-            $newStock = $qty;
-        }
 
-        $product->current_stock = $newStock;
-        $product->save();
+            $product->current_stock = $newStock;
+            $product->save();
 
-        return response()->json([
-            'success' => true,
-            'message' => "Stock adjusted for '{$product->name}'. Previous: {$oldStock} {$product->unit}, Current: {$newStock} {$product->unit}.",
-            'product' => $product,
-            'adjustment' => [
-                'old_stock' => $oldStock,
-                'new_stock' => $newStock,
-                'type' => $validated['type'],
-                'quantity' => $qty,
-                'reason' => $validated['reason'],
-                'notes' => $validated['notes'] ?? null,
-            ],
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => "Stock adjusted for '{$product->name}'. Previous: {$oldStock} {$product->unit}, Current: {$newStock} {$product->unit}.",
+                'product' => $product,
+                'adjustment' => [
+                    'old_stock' => $oldStock,
+                    'new_stock' => $newStock,
+                    'type' => $validated['type'],
+                    'quantity' => $qty,
+                    'reason' => $validated['reason'],
+                    'notes' => $validated['notes'] ?? null,
+                ],
+            ]);
+        });
     }
 
     /**

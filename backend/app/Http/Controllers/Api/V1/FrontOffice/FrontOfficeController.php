@@ -533,6 +533,21 @@ class FrontOfficeController extends Controller
             'status' => 'required|in:AVAILABLE,OCCUPIED,DIRTY,MAINTENANCE',
         ]);
 
+        // Prevent setting room to AVAILABLE or DIRTY if an active guest is currently checked in!
+        if (in_array($validated['status'], ['AVAILABLE', 'DIRTY', 'MAINTENANCE'], true) && $room->status === 'OCCUPIED') {
+            $activeBooking = $hotel->bookings()
+                ->where('room_id', $room->id)
+                ->where('status', 'CHECKED_IN')
+                ->first();
+
+            if ($activeBooking) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Cannot change status of Room {$room->room_number} to {$validated['status']} because an in-house guest is currently checked in. Please check out the booking first.",
+                ], 422);
+            }
+        }
+
         $room->status = $validated['status'];
         $room->save();
 
@@ -637,6 +652,13 @@ class FrontOfficeController extends Controller
                 ], 422);
             }
 
+            if ($checkOutTime->isPast()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Expected check-out date and time cannot be in the past.',
+                ], 422);
+            }
+
             // Check if there is an overlapping active or reserved booking for this room
             $overlapping = Booking::where('room_id', $room->id)
                 ->whereIn('status', ['CHECKED_IN', 'RESERVED'])
@@ -660,11 +682,27 @@ class FrontOfficeController extends Controller
             // If check-in is in the future (> 6 hours ahead), treat as advance reservation
             $isFutureReservation = $checkInTime->isAfter(Carbon::now()->addHours(6));
 
-            if (!$isFutureReservation && $room->status === 'OCCUPIED') {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Room {$room->room_number} is currently occupied by an in-house guest today.",
-                ], 422);
+            if (!$isFutureReservation) {
+                if ($room->status === 'OCCUPIED') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Room {$room->room_number} is currently occupied by an in-house guest today.",
+                    ], 422);
+                }
+
+                if ($room->status === 'DIRTY') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Room {$room->room_number} is currently dirty and awaiting housekeeping cleaning. Please clean and inspect before check-in.",
+                    ], 422);
+                }
+
+                if ($room->status === 'MAINTENANCE') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Room {$room->room_number} is under active maintenance and cannot be assigned to guests.",
+                    ], 422);
+                }
             }
 
             $bookingStatus = $isFutureReservation ? 'RESERVED' : 'CHECKED_IN';
@@ -696,10 +734,23 @@ class FrontOfficeController extends Controller
             $totalRoomCharges = $ratePerNight * $nights;
             $discount = (float) ($validated['discount_amount'] ?? 0);
 
-            // 3. Create Booking
+            if ($discount > $totalRoomCharges) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Discount (₹" . number_format($discount, 2) . ") cannot exceed the total room tariff charges (₹" . number_format($totalRoomCharges, 2) . ").",
+                ], 422);
+            }
+
+            // 3. Create Booking (Collision-proof booking number)
+            $datePrefix = Carbon::now()->format('Ymd');
+            $countToday = Booking::where('hotel_id', $hotel->id)
+                ->whereDate('created_at', Carbon::today())
+                ->count();
+            $bookingNumber = 'BK-' . $datePrefix . '-' . str_pad($countToday + 1, 4, '0', STR_PAD_LEFT) . '-' . strtoupper(Str::random(4));
+
             $booking = Booking::create([
                 'hotel_id' => $hotel->id,
-                'booking_number' => 'BK-' . rand(10000, 99999),
+                'booking_number' => $bookingNumber,
                 'guest_id' => $guest->id,
                 'room_id' => $room->id,
                 'check_in_at' => $checkInTime,
@@ -767,6 +818,68 @@ class FrontOfficeController extends Controller
     }
 
     /**
+     * Confirm check-in for an advance reservation upon guest arrival at the property.
+     */
+    public function confirmCheckIn(Request $request, string $bookingId): JsonResponse
+    {
+        $hotel = $this->getHotel($request);
+        $booking = $hotel->bookings()->with(['room', 'guest'])->findOrFail($bookingId);
+
+        if ($booking->status !== 'RESERVED') {
+            return response()->json([
+                'success' => false,
+                'message' => "Only RESERVED bookings can be confirmed for check-in. Current status is {$booking->status}.",
+            ], 422);
+        }
+
+        // Premature check-in prevention: Cannot confirm check-in if scheduled arrival is > 48 hours ahead
+        if ($booking->check_in_at && Carbon::parse($booking->check_in_at)->isAfter(Carbon::now()->addDays(2)->addHours(2))) {
+            $scheduledDate = Carbon::parse($booking->check_in_at)->format('d M Y');
+            return response()->json([
+                'success' => false,
+                'message' => "Cannot confirm check-in prematurely. Reservation is scheduled for {$scheduledDate}. Guests may only be checked in within 48 hours of scheduled arrival.",
+            ], 422);
+        }
+
+        $room = $booking->room;
+        if (!$room) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No room is assigned to this reservation.',
+            ], 422);
+        }
+
+        if ($room->status === 'OCCUPIED') {
+            return response()->json([
+                'success' => false,
+                'message' => "Room {$room->room_number} is currently occupied by another in-house guest.",
+            ], 422);
+        }
+
+        if (in_array($room->status, ['DIRTY', 'MAINTENANCE'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => "Room {$room->room_number} is currently {$room->status}. Please clean/inspect the room before confirming check-in.",
+            ], 422);
+        }
+
+        return DB::transaction(function () use ($booking, $room) {
+            $booking->status = 'CHECKED_IN';
+            $booking->check_in_at = Carbon::now();
+            $booking->save();
+
+            $room->status = 'OCCUPIED';
+            $room->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Guest {$booking->guest?->full_name} confirmed and checked into Room {$room->room_number} successfully.",
+                'booking' => $booking->fresh(['guest', 'room', 'folioItems', 'payments']),
+            ]);
+        });
+    }
+
+    /**
      * Add extra incidental charges to in-house guest bill (Room Service, Laundry, Extra Bed).
      */
     public function addFolioCharge(Request $request, string $bookingId): JsonResponse
@@ -813,6 +926,13 @@ class FrontOfficeController extends Controller
         $hotel = $this->getHotel($request);
         $booking = $hotel->bookings()->findOrFail($bookingId);
 
+        if (!in_array($booking->status, ['CHECKED_IN', 'RESERVED'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => "Cannot record payment on booking {$booking->booking_number} because guest has already {$booking->status}.",
+            ], 422);
+        }
+
         $validated = $request->validate([
             'amount' => 'required|numeric|min:1',
             'payment_method' => 'required|in:CASH,UPI_QR,CARD,BANK_TRANSFER',
@@ -856,7 +976,20 @@ class FrontOfficeController extends Controller
         ]);
 
         return DB::transaction(function () use ($hotel, $booking, $validated) {
-            $settlementAmount = (float) ($validated['settlement_amount'] ?? $booking->balance_amount);
+            // First ensure totals and balances are up to date
+            $booking->recalculateTotals();
+
+            $settlementAmount = isset($validated['settlement_amount'])
+                ? (float) $validated['settlement_amount']
+                : (float) $booking->balance_amount;
+
+            $remainingBalance = round((float) $booking->balance_amount - $settlementAmount, 2);
+            if ($remainingBalance > 0.01) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Cannot check out booking with an outstanding balance of ₹" . number_format($remainingBalance, 2) . ". The bill must be fully settled before guest departure.",
+                ], 422);
+            }
 
             if ($settlementAmount > 0) {
                 Payment::create([
@@ -915,7 +1048,7 @@ class FrontOfficeController extends Controller
                     'room_charges' => (float) $booking->total_room_charges,
                     'extra_charges' => (float) $booking->total_extra_charges,
                     'discount' => (float) $booking->discount_amount,
-                    'taxable_amount' => (float) ($booking->total_room_charges + $booking->total_extra_charges - $booking->discount_amount),
+                    'taxable_amount' => (float) max(0, $booking->total_room_charges - $booking->discount_amount),
                     'gst_12_percent' => (float) $booking->tax_amount,
                     'grand_total' => (float) $booking->grand_total,
                     'total_paid' => (float) $booking->paid_amount,

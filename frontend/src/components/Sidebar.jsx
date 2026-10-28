@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Lock,
   ChevronDown,
+  BarChart3,
 } from 'lucide-react';
 
 export default function Sidebar({ currentTab, setCurrentTab }) {
@@ -212,6 +213,13 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
               highlight
             />
 
+            <NavItem
+              active={currentTab === 'reports'}
+              onClick={() => setCurrentTab('reports')}
+              icon={BarChart3}
+              label="Group Reports & Audit"
+            />
+
             <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '18px 10px 8px', letterSpacing: '0.04em' }}>
               Switch To Property Desk
             </div>
@@ -277,6 +285,12 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
                       onClick={() => setCurrentTab('staff')}
                       icon={ShieldCheck}
                       label="Hotel Staff Directory"
+                    />
+                    <NavItem
+                      active={currentTab === 'reports'}
+                      onClick={() => setCurrentTab('reports')}
+                      icon={BarChart3}
+                      label="Reports & Night Audit"
                     />
 
                     <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '14px 10px 6px', letterSpacing: '0.04em' }}>
@@ -358,6 +372,14 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
                 label="Staff & Module Access"
               />
             )}
+
+            <NavItem
+              active={currentTab === 'reports'}
+              onClick={() => setCurrentTab('reports')}
+              icon={BarChart3}
+              label="Reports & Night Audit"
+              highlight
+            />
 
             <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '16px 10px 8px', letterSpacing: '0.04em' }}>
               Subscribed Modules

@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Domain\Purchase\Models\Supplier;
+use App\Domain\Restaurant\Models\MenuCategory;
+use App\Domain\Restaurant\Models\MenuItem;
 use App\Domain\Restaurant\Models\RestaurantTable;
 use App\Domain\Store\Models\Product;
 use App\Domain\Tenancy\Models\Hotel;
@@ -216,6 +218,68 @@ class MasterDataSeeder extends Seeder
                         'status' => $tbl['status'],
                         'notes' => 'Table configured with QR digital ordering.',
                     ]);
+                }
+            }
+
+            // 4. Seed Restaurant Menu Categories & Dishes for hotels
+            if ($hotel->menuItems()->count() === 0) {
+                $categories = [
+                    'Starters & Appetizers' => [
+                        ['code' => 'MNU-STR-01', 'name' => 'Paneer Tikka Angara', 'price' => 320.00, 'food_type' => 'VEG', 'desc' => 'Cottage cheese cubes marinated in Kashmiri chili and tandoori spices.'],
+                        ['code' => 'MNU-STR-02', 'name' => 'Crispy Corn Salt & Pepper', 'price' => 240.00, 'food_type' => 'VEG', 'desc' => 'Golden fried American sweet corn tossed with scallions and crushed pepper.'],
+                        ['code' => 'MNU-STR-03', 'name' => 'Murgh Malai Tikka', 'price' => 420.00, 'food_type' => 'NON_VEG', 'desc' => 'Tender chicken morsels steeped in cream, cashew paste, and green cardamom.'],
+                        ['code' => 'MNU-STR-04', 'name' => 'Tandoori Chicken (Half)', 'price' => 380.00, 'food_type' => 'NON_VEG', 'desc' => 'Classic clay-oven roasted bone-in chicken with mustard oil marinade.'],
+                    ],
+                    'Main Course' => [
+                        ['code' => 'MNU-MNC-01', 'name' => 'Paneer Butter Masala', 'price' => 360.00, 'food_type' => 'VEG', 'desc' => 'Soft paneer in a slow-simmered velvety tomato and cashew butter gravy.'],
+                        ['code' => 'MNU-MNC-02', 'name' => 'Dal Makhani Royal', 'price' => 290.00, 'food_type' => 'VEG', 'desc' => 'Overnight slow cooked black lentils with white butter and aromatic spices.'],
+                        ['code' => 'MNU-MNC-03', 'name' => 'Butter Chicken Boneless', 'price' => 460.00, 'food_type' => 'NON_VEG', 'desc' => 'Charcoal-grilled chicken pieces in rich tomato cream gravy with dried fenugreek.'],
+                        ['code' => 'MNU-MNC-04', 'name' => 'Kashmiri Mutton Rogan Josh', 'price' => 540.00, 'food_type' => 'NON_VEG', 'desc' => 'Slow-braised tender lamb shanks in traditional Kashmiri red gravy with fennel.'],
+                    ],
+                    'Breads & Rice' => [
+                        ['code' => 'MNU-BRD-01', 'name' => 'Butter Naan', 'price' => 65.00, 'food_type' => 'VEG', 'desc' => 'Flaky refined flour bread brushed with salted butter.'],
+                        ['code' => 'MNU-BRD-02', 'name' => 'Garlic Naan', 'price' => 85.00, 'food_type' => 'VEG', 'desc' => 'Clay-oven naan topped with minced garlic and coriander.'],
+                        ['code' => 'MNU-BRD-03', 'name' => 'Tandoori Roti', 'price' => 35.00, 'food_type' => 'VEG', 'desc' => 'Whole wheat unleavened bread baked in tandoor.'],
+                        ['code' => 'MNU-RIC-01', 'name' => 'Dum Chicken Biryani', 'price' => 410.00, 'food_type' => 'NON_VEG', 'desc' => 'Fragrant basmati rice layered with spiced chicken, saffron, and fried onions.'],
+                        ['code' => 'MNU-RIC-02', 'name' => 'Subz Hyderabadi Dum Biryani', 'price' => 320.00, 'food_type' => 'VEG', 'desc' => 'Fresh seasonal vegetables cooked on dum with long grain rice and mint.'],
+                    ],
+                    'Beverages' => [
+                        ['code' => 'MNU-BEV-01', 'name' => 'Fresh Lime Soda (Sweet & Salt)', 'price' => 90.00, 'food_type' => 'VEG', 'desc' => 'Refreshing carbonated lime drink with mint sprig.'],
+                        ['code' => 'MNU-BEV-02', 'name' => 'Creamy Mango Lassi', 'price' => 120.00, 'food_type' => 'VEG', 'desc' => 'Thick Punjabi yogurt shake infused with Alphonso mango pulp.'],
+                        ['code' => 'MNU-BEV-03', 'name' => 'Cold Coffee with Ice Cream', 'price' => 150.00, 'food_type' => 'VEG', 'desc' => 'Chilled espresso blended with milk and crowned with vanilla scoop.'],
+                        ['code' => 'MNU-BEV-04', 'name' => 'Masala Chai Kulhad', 'price' => 60.00, 'food_type' => 'VEG', 'desc' => 'Traditional clay cup tea brewed with ginger, cloves, and cardamom.'],
+                    ],
+                    'Desserts' => [
+                        ['code' => 'MNU-DES-01', 'name' => 'Gulab Jamun with Rabdi', 'price' => 160.00, 'food_type' => 'VEG', 'desc' => 'Warm khoya dumplings steeped in rose syrup served over condensed milk rabdi.'],
+                        ['code' => 'MNU-DES-02', 'name' => 'Sizzling Brownie with Ice Cream', 'price' => 220.00, 'food_type' => 'EGG', 'desc' => 'Warm walnut fudge brownie served on a hot sizzler plate with chocolate fudge sauce.'],
+                    ],
+                ];
+
+                $orderIdx = 1;
+                foreach ($categories as $catName => $dishes) {
+                    $cat = MenuCategory::create([
+                        'hotel_id' => $hotel->id,
+                        'name' => $catName,
+                        'slug' => \Illuminate\Support\Str::slug($catName),
+                        'sort_order' => $orderIdx++,
+                        'is_active' => true,
+                    ]);
+
+                    foreach ($dishes as $dish) {
+                        MenuItem::create([
+                            'hotel_id' => $hotel->id,
+                            'category_id' => $cat->id,
+                            'category_name' => $cat->name,
+                            'item_code' => $dish['code'],
+                            'name' => $dish['name'],
+                            'description' => $dish['desc'],
+                            'price' => $dish['price'],
+                            'gst_percentage' => 5.00,
+                            'food_type' => $dish['food_type'],
+                            'is_available' => true,
+                            'preparation_time_minutes' => 15,
+                        ]);
+                    }
                 }
             }
         }

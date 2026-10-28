@@ -97,12 +97,14 @@ function AppContent() {
         switch (currentTab) {
           case 'staff': return 'Staff & Access Credentials';
           case 'properties': return 'Group Properties Performance';
+          case 'reports': return `${user?.organization?.name || 'Group'} • Consolidated Reports & Audit`;
           default: return `${user?.organization?.name || 'Group'} • Consolidated Portfolio`;
         }
       }
       switch (currentTab) {
         case 'dashboard': return `${currentHotel?.name || 'Hotel'} Executive Dashboard`;
         case 'staff': return `${currentHotel?.name || 'Hotel'} • Staff Management`;
+        case 'reports': return `${currentHotel?.name || 'Hotel'} • Reports & Night Audit`;
         case 'front_office': return 'Front Office Operations';
         case 'rooms': return 'Rooms Management & Rack Grid';
         case 'restaurant': return 'Restaurant & Dining POS';

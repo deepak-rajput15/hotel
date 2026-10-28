@@ -146,3 +146,125 @@ export const storeApi = {
     }),
 };
 
+export const reportsApi = {
+  getOverview: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/reports/overview${qs ? '?' + qs : ''}`);
+  },
+  getGuestLedger: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/reports/guest-ledger${qs ? '?' + qs : ''}`);
+  },
+  getInventoryReport: () => apiRequest('/reports/inventory'),
+  downloadExport: async (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    const token = localStorage.getItem('hotel_saas_token');
+    const currentHotelId = localStorage.getItem('hotel_saas_current_hotel_id');
+
+    const headers = {
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(currentHotelId && currentHotelId !== 'ALL' ? { 'X-Hotel-ID': currentHotelId } : {}),
+    };
+
+    const response = await fetch(`${API_BASE}/reports/export${qs ? '?' + qs : ''}`, { headers });
+    if (!response.ok) {
+      throw new Error('Export download failed');
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `GrandStay_Audit_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+};
+
+export const restaurantApi = {
+  getTables: () => apiRequest('/restaurant/tables'),
+  createTable: (data) =>
+    apiRequest('/restaurant/tables', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateTableStatus: (id, status) =>
+    apiRequest(`/restaurant/tables/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  getMenu: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/restaurant/menu${qs ? '?' + qs : ''}`);
+  },
+  createMenuItem: (data) =>
+    apiRequest('/restaurant/menu/items', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateMenuItem: (id, data) =>
+    apiRequest(`/restaurant/menu/items/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  getOrders: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/restaurant/orders${qs ? '?' + qs : ''}`);
+  },
+  getOrderDetail: (id) => apiRequest(`/restaurant/orders/${id}`),
+  createOrder: (data) =>
+    apiRequest('/restaurant/orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  addOrderItems: (id, data) =>
+    apiRequest(`/restaurant/orders/${id}/items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  settleOrder: (id, data) =>
+    apiRequest(`/restaurant/orders/${id}/settle`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getInHouseRooms: () => apiRequest('/restaurant/in-house-rooms'),
+};
+
+export const kitchenApi = {
+  getLiveKots: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/kitchen/kots${qs ? '?' + qs : ''}`);
+  },
+  getSummary: () => apiRequest('/kitchen/summary'),
+  updateItemStatus: (itemId, status) =>
+    apiRequest(`/kitchen/items/${itemId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  updateKotStatus: (orderId, kotNumber, status) =>
+    apiRequest(`/kitchen/kots/${orderId}/${kotNumber}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+};
+
+export const purchaseApi = {
+  getOrders: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/purchase/orders${qs ? '?' + qs : ''}`);
+  },
+  getOrderDetail: (id) => apiRequest(`/purchase/orders/${id}`),
+  createOrder: (data) =>
+    apiRequest('/purchase/orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  receiveGoods: (id, data) =>
+    apiRequest(`/purchase/orders/${id}/receive-goods`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getGrns: () => apiRequest('/purchase/grn'),
+};
+
