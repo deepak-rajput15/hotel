@@ -166,14 +166,19 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .page-body {
-  padding: 32px;
+  padding: 20px 24px;
   flex: 1;
-  max-width: 1400px;
+  max-width: 1480px;
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
   margin: 0 auto;
-  overflow-x: hidden;
+}
+
+@media (max-width: 1280px) {
+  .page-body {
+    padding: 16px 18px;
+  }
 }
 
 /* Cards */

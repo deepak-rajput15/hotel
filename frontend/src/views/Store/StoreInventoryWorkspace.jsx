@@ -273,19 +273,19 @@ export default function StoreInventoryWorkspace() {
       )}
 
       {/* Metrics Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '18px' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: 'var(--r-card)', background: 'var(--brand-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
-            <Package size={22} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '18px' }}>
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: 'var(--r-card)', background: 'var(--brand-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)', flexShrink: 0 }}>
+            <Package size={20} />
           </div>
           <div>
-            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--t-500)', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--t-500)', textTransform: 'uppercase' }}>
               Total Products
             </div>
-            <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--t-900)' }}>
+            <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--t-900)' }}>
               {metrics.total_products}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--t-500)' }}>Active in catalog</div>
+            <div style={{ fontSize: '10.5px', color: 'var(--t-500)' }}>Active in catalog</div>
           </div>
         </div>
 
@@ -295,68 +295,69 @@ export default function StoreInventoryWorkspace() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '14px',
-            padding: '18px',
+            gap: '12px',
+            padding: '14px 16px',
             cursor: 'pointer',
             border: lowStockOnly ? '2px solid #ef4444' : undefined,
             background: metrics.low_stock_count > 0 ? '#fef2f2' : 'white',
           }}
         >
-          <div style={{ width: '42px', height: '42px', borderRadius: 'var(--r-card)', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
-            <AlertTriangle size={22} />
+          <div style={{ width: '38px', height: '38px', borderRadius: 'var(--r-card)', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', flexShrink: 0 }}>
+            <AlertTriangle size={20} />
           </div>
           <div>
-            <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#991b1b', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#991b1b', textTransform: 'uppercase' }}>
               Low Stock Alerts
             </div>
-            <div style={{ fontSize: '22px', fontWeight: '800', color: '#dc2626' }}>
+            <div style={{ fontSize: '20px', fontWeight: '800', color: '#dc2626' }}>
               {metrics.low_stock_count} Items
             </div>
-            <div style={{ fontSize: '11px', color: '#b91c1c' }}>
-              {lowStockOnly ? 'Filtering active (click to reset)' : 'Click to filter low stock'}
+            <div style={{ fontSize: '10.5px', color: '#b91c1c' }}>
+              {lowStockOnly ? 'Filtering active (reset)' : 'Click to filter'}
             </div>
           </div>
         </div>
 
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '18px' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: 'var(--r-card)', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
-            <TrendingUp size={22} />
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: 'var(--r-card)', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a', flexShrink: 0 }}>
+            <TrendingUp size={20} />
           </div>
           <div>
-            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--t-500)', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--t-500)', textTransform: 'uppercase' }}>
               Stock Inventory Value
             </div>
-            <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--t-900)' }}>
+            <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--t-900)' }}>
               ₹ {metrics.total_stock_value?.toLocaleString('en-IN')}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--t-500)' }}>Valued at purchase rate</div>
+            <div style={{ fontSize: '10.5px', color: 'var(--t-500)' }}>Valued at purchase rate</div>
           </div>
         </div>
 
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '18px' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: 'var(--r-card)', background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed' }}>
-            <Truck size={22} />
+        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: 'var(--r-card)', background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed', flexShrink: 0 }}>
+            <Truck size={20} />
           </div>
           <div>
-            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--t-500)', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--t-500)', textTransform: 'uppercase' }}>
               Registered Suppliers
             </div>
-            <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--t-900)' }}>
+            <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--t-900)' }}>
               {metrics.active_suppliers} Vendors
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--t-500)' }}>Active procurement partners</div>
+            <div style={{ fontSize: '10.5px', color: 'var(--t-500)' }}>Active procurement partners</div>
           </div>
         </div>
       </div>
 
       {/* Main Container Card */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="card" style={{ padding: 0, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
         {/* Navigation Tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border-sub)', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border-sub)', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={() => setActiveTab('inventory')}
               className={`btn btn-sm ${activeTab === 'inventory' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '12.5px' }}
             >
               <Boxes size={14} />
               <span>Products & Stock Inventory</span>
@@ -364,6 +365,7 @@ export default function StoreInventoryWorkspace() {
             <button
               onClick={() => setActiveTab('suppliers')}
               className={`btn btn-sm ${activeTab === 'suppliers' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '12.5px' }}
             >
               <Truck size={14} />
               <span>Suppliers & Purchase Vendors ({suppliers.length})</span>
@@ -392,6 +394,7 @@ export default function StoreInventoryWorkspace() {
                   setShowAddProductModal(true);
                 }}
                 className="btn btn-primary btn-sm"
+                style={{ fontSize: '12.5px' }}
               >
                 <Plus size={14} />
                 <span>+ Add New Product</span>
@@ -400,6 +403,7 @@ export default function StoreInventoryWorkspace() {
               <button
                 onClick={() => setShowSupplierModal(true)}
                 className="btn btn-primary btn-sm"
+                style={{ fontSize: '12.5px' }}
               >
                 <Plus size={14} />
                 <span>+ Add New Supplier</span>
@@ -411,23 +415,23 @@ export default function StoreInventoryWorkspace() {
         {activeTab === 'inventory' && (
           <div>
             {/* Category Filter Pills (From Book1.xlsx) */}
-            <div style={{ padding: '12px 20px', background: 'var(--surface-sub)', borderBottom: '1px solid var(--border-sub)', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto' }}>
-              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--t-500)', whiteSpace: 'nowrap' }}>
+            <div style={{ padding: '10px 16px', background: 'var(--surface-sub)', borderBottom: '1px solid var(--border-sub)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--t-500)', textTransform: 'uppercase', marginRight: '4px' }}>
                 Category:
               </span>
               <button
                 onClick={() => setCategoryFilter('ALL')}
                 style={{
-                  padding: '4px 10px',
+                  padding: '3px 9px',
                   borderRadius: 'var(--r-pill)',
                   border: '1px solid',
                   borderColor: categoryFilter === 'ALL' ? 'var(--brand)' : 'var(--border-sub)',
                   background: categoryFilter === 'ALL' ? 'var(--brand)' : 'white',
                   color: categoryFilter === 'ALL' ? 'white' : 'var(--t-700)',
-                  fontSize: '11.5px',
+                  fontSize: '11px',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 All Categories ({metrics.total_products})
@@ -437,16 +441,16 @@ export default function StoreInventoryWorkspace() {
                   key={cat}
                   onClick={() => setCategoryFilter(cat)}
                   style={{
-                    padding: '4px 10px',
+                    padding: '3px 9px',
                     borderRadius: 'var(--r-pill)',
                     border: '1px solid',
                     borderColor: categoryFilter === cat ? 'var(--brand)' : 'var(--border-sub)',
                     background: categoryFilter === cat ? 'var(--brand)' : 'white',
                     color: categoryFilter === cat ? 'white' : 'var(--t-700)',
-                    fontSize: '11.5px',
+                    fontSize: '11px',
                     fontWeight: '600',
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   {cat}
@@ -455,25 +459,25 @@ export default function StoreInventoryWorkspace() {
             </div>
 
             {/* Search & Low Stock Toggle Bar */}
-            <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--border-sub)' }}>
-              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, maxWidth: '420px' }}>
+            <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid var(--border-sub)', background: '#ffffff' }}>
+              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, maxWidth: '380px' }}>
                 <div style={{ position: 'relative', flex: 1 }}>
-                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--t-500)' }} />
+                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '9px', color: 'var(--t-500)' }} />
                   <input
                     type="text"
                     placeholder="Search product code, name, description..."
                     className="form-control"
-                    style={{ paddingLeft: '32px', fontSize: '13px', height: '34px' }}
+                    style={{ paddingLeft: '30px', fontSize: '12.5px', height: '32px' }}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <button type="submit" className="btn btn-secondary btn-sm">
+                <button type="submit" className="btn btn-secondary btn-sm" style={{ padding: '4px 10px', height: '32px', fontSize: '12px' }}>
                   Search
                 </button>
               </form>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: '600', color: lowStockOnly ? '#dc2626' : 'var(--t-700)' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: lowStockOnly ? '#dc2626' : 'var(--t-700)' }}>
                 <input
                   type="checkbox"
                   checked={lowStockOnly}
@@ -483,38 +487,34 @@ export default function StoreInventoryWorkspace() {
               </label>
             </div>
 
-            {/* Products Table */}
-            <div style={{ overflowX: 'auto' }}>
-              <table className="data-table">
+            {/* Products Table (Screen-Fitted Proportional Layout) */}
+            <div style={{ overflowX: 'auto', width: '100%' }}>
+              <table className="data-table" style={{ width: '100%', minWidth: '760px', tableLayout: 'auto' }}>
                 <thead>
-                  <tr>
-                    <th>Product Code & Name</th>
-                    <th>Category</th>
-                    <th>Unit</th>
-                    <th>Rate (₹)</th>
-                    <th>GST %</th>
-                    <th>Expiry (MM/yyyy)</th>
-                    <th>Current / Min Stock</th>
-                    <th>Supplier Firm</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  <tr style={{ background: '#f8fafc' }}>
+                    <th style={{ width: '34%', padding: '10px 14px' }}>Product & Supplier Info</th>
+                    <th style={{ width: '15%', padding: '10px 12px' }}>Category & Unit</th>
+                    <th style={{ width: '13%', padding: '10px 12px' }}>Rate (+GST)</th>
+                    <th style={{ width: '18%', padding: '10px 12px' }}>Current Stock</th>
+                    <th style={{ width: '8%', padding: '10px 10px', textAlign: 'center' }}>Status</th>
+                    <th style={{ width: '12%', padding: '10px 14px', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={10} style={{ textAlign: 'center', padding: '40px' }}>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '36px' }}>
                         <div style={{ color: 'var(--t-500)', fontSize: '13px' }}>Loading products...</div>
                       </td>
                     </tr>
                   ) : products.length === 0 ? (
                     <tr>
-                      <td colSpan={10} style={{ textAlign: 'center', padding: '48px' }}>
-                        <Boxes size={32} color="var(--t-400)" style={{ margin: '0 auto 10px', display: 'block' }} />
-                        <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--t-800)' }}>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>
+                        <Boxes size={30} color="var(--t-400)" style={{ margin: '0 auto 10px', display: 'block' }} />
+                        <div style={{ fontSize: '14.5px', fontWeight: '700', color: 'var(--t-800)' }}>
                           No Products Found
                         </div>
-                        <p style={{ fontSize: '12.5px', color: 'var(--t-500)', maxWidth: '380px', margin: '4px auto 16px' }}>
+                        <p style={{ fontSize: '12px', color: 'var(--t-500)', maxWidth: '360px', margin: '4px auto 14px' }}>
                           Add products to track opening stock, supplier details, and low inventory thresholds.
                         </p>
                         <button onClick={() => setShowAddProductModal(true)} className="btn btn-primary btn-sm">
@@ -528,71 +528,65 @@ export default function StoreInventoryWorkspace() {
                       const isLow = parseFloat(p.current_stock) <= parseFloat(p.minimum_stock_qty);
                       return (
                         <tr key={p.id} style={{ background: isLow ? '#fff5f5' : undefined }}>
-                          <td>
-                            <div>
-                              <span className="badge badge-brand" style={{ fontFamily: 'monospace', fontSize: '11px', marginRight: '6px' }}>
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span className="badge badge-brand" style={{ fontFamily: 'monospace', fontSize: '10.5px', padding: '1px 6px' }}>
                                 {p.product_code}
                               </span>
-                              <strong style={{ fontSize: '13.5px', color: 'var(--t-900)' }}>{p.name}</strong>
-                              {p.description && (
-                                <div style={{ fontSize: '11.5px', color: 'var(--t-500)', marginTop: '2px', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {p.description}
-                                </div>
-                              )}
+                              <strong style={{ fontSize: '13px', color: 'var(--t-900)' }}>
+                                {p.name}
+                              </strong>
+                            </div>
+                            {p.description && (
+                              <div style={{ fontSize: '11px', color: 'var(--t-500)', marginTop: '2px', maxWidth: '340px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {p.description}
+                              </div>
+                            )}
+                            <div style={{ fontSize: '10.5px', color: 'var(--t-500)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>🏢 {p.supplier?.firm_name || 'Direct Procurement'}</span>
+                              {p.expiry_period && <span>&bull; ⏳ Exp: {p.expiry_period}</span>}
                             </div>
                           </td>
-                          <td>
-                            <span style={{ fontSize: '12px', color: 'var(--t-800)', fontWeight: '500' }}>
+                          <td style={{ padding: '10px 12px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--t-800)' }}>
                               {p.category}
-                            </span>
+                            </div>
+                            <div style={{ marginTop: '2px' }}>
+                              <span className="badge badge-inactive" style={{ fontSize: '10px', padding: '1px 5px' }}>
+                                Per {p.unit}
+                              </span>
+                            </div>
                           </td>
-                          <td>
-                            <span className="badge badge-inactive" style={{ fontSize: '11px' }}>
-                              {p.unit}
-                            </span>
-                          </td>
-                          <td>
+                          <td style={{ padding: '10px 12px' }}>
                             <strong style={{ fontSize: '13px', color: 'var(--t-900)' }}>
                               ₹ {parseFloat(p.rate).toFixed(2)}
                             </strong>
+                            <div style={{ fontSize: '10.5px', color: 'var(--t-500)', marginTop: '1px' }}>
+                              +{parseFloat(p.gst_percentage).toFixed(0)}% GST
+                            </div>
                           </td>
-                          <td>
-                            <span style={{ fontSize: '12px', color: 'var(--t-600)' }}>
-                              {parseFloat(p.gst_percentage).toFixed(0)}%
-                            </span>
-                          </td>
-                          <td>
-                            <span style={{ fontSize: '12px', color: 'var(--t-700)', fontFamily: 'monospace' }}>
-                              {p.expiry_period || 'N/A'}
-                            </span>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <strong style={{ fontSize: '14px', color: isLow ? '#dc2626' : '#16a34a' }}>
+                          <td style={{ padding: '10px 12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <strong style={{ fontSize: '13.5px', color: isLow ? '#dc2626' : '#16a34a' }}>
                                 {parseFloat(p.current_stock)} {p.unit}
                               </strong>
-                              <span style={{ fontSize: '11px', color: 'var(--t-500)' }}>
-                                (Min: {parseFloat(p.minimum_stock_qty)})
-                              </span>
                               {isLow && (
-                                <span className="badge" style={{ background: '#fee2e2', color: '#b91c1c', fontSize: '10px', padding: '1px 5px' }}>
+                                <span className="badge" style={{ background: '#fee2e2', color: '#b91c1c', fontSize: '9.5px', padding: '1px 5px', fontWeight: '700' }}>
                                   LOW
                                 </span>
                               )}
                             </div>
+                            <div style={{ fontSize: '10.5px', color: 'var(--t-500)', marginTop: '1px' }}>
+                              Min Threshold: {parseFloat(p.minimum_stock_qty)} {p.unit}
+                            </div>
                           </td>
-                          <td>
-                            <span style={{ fontSize: '12px', color: 'var(--t-800)' }}>
-                              {p.supplier?.firm_name || '--'}
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`badge ${p.status === 'Active' ? 'badge-success' : 'badge-inactive'}`}>
+                          <td style={{ padding: '10px 10px', textAlign: 'center' }}>
+                            <span className={`badge ${p.status === 'Active' ? 'badge-success' : 'badge-inactive'}`} style={{ fontSize: '10.5px', padding: '2px 7px' }}>
                               {p.status}
                             </span>
                           </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '5px' }}>
                               <button
                                 onClick={() => {
                                   setShowStockModal(p);
@@ -604,17 +598,19 @@ export default function StoreInventoryWorkspace() {
                                   });
                                 }}
                                 className="btn btn-secondary btn-sm"
+                                style={{ padding: '3px 8px', fontSize: '11px', height: '28px' }}
                                 title="Adjust Stock (Receive delivery, issue to kitchen, etc.)"
                               >
-                                <RotateCcw size={13} />
-                                <span>Adjust Stock</span>
+                                <RotateCcw size={11} />
+                                <span>Adjust</span>
                               </button>
                               <button
                                 onClick={() => openEditModal(p)}
                                 className="btn btn-secondary btn-sm"
+                                style={{ padding: '3px 7px', fontSize: '11px', height: '28px' }}
                                 title="Edit Product"
                               >
-                                <Edit2 size={13} />
+                                <Edit2 size={11} />
                               </button>
                             </div>
                           </td>
@@ -631,25 +627,21 @@ export default function StoreInventoryWorkspace() {
         {/* Suppliers Tab */}
         {activeTab === 'suppliers' && (
           <div>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="data-table">
+            <div style={{ overflowX: 'auto', width: '100%' }}>
+              <table className="data-table" style={{ width: '100%', minWidth: '700px', tableLayout: 'auto' }}>
                 <thead>
-                  <tr>
-                    <th>Firm Name</th>
-                    <th>Contact Person</th>
-                    <th>Mobile</th>
-                    <th>GST No.</th>
-                    <th>PAN No.</th>
-                    <th>Aadhar No.</th>
-                    <th>Address</th>
-                    <th>Supplied Products</th>
-                    <th>Status</th>
+                  <tr style={{ background: '#f8fafc' }}>
+                    <th style={{ width: '32%', padding: '10px 14px' }}>Firm Name & Address</th>
+                    <th style={{ width: '22%', padding: '10px 12px' }}>Contact Person</th>
+                    <th style={{ width: '24%', padding: '10px 12px' }}>Tax & Identifiers</th>
+                    <th style={{ width: '12%', padding: '10px 12px' }}>Catalog</th>
+                    <th style={{ width: '10%', padding: '10px 14px', textAlign: 'center' }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {suppliers.length === 0 ? (
                     <tr>
-                      <td colSpan={9} style={{ textAlign: 'center', padding: '40px' }}>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
                         <Truck size={30} color="var(--t-400)" style={{ margin: '0 auto 10px', display: 'block' }} />
                         <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--t-800)' }}>
                           No Suppliers Registered Yet
@@ -662,51 +654,42 @@ export default function StoreInventoryWorkspace() {
                   ) : (
                     suppliers.map((s) => (
                       <tr key={s.id}>
-                        <td>
+                        <td style={{ padding: '10px 14px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Building size={16} color="var(--brand)" />
-                            <strong style={{ fontSize: '13.5px', color: 'var(--t-900)' }}>
+                            <Building size={15} color="var(--brand)" />
+                            <strong style={{ fontSize: '13px', color: 'var(--t-900)' }}>
                               {s.firm_name}
                             </strong>
                           </div>
+                          {s.address && (
+                            <div style={{ fontSize: '11px', color: 'var(--t-500)', marginTop: '2px', maxWidth: '320px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              📍 {s.address}
+                            </div>
+                          )}
                         </td>
-                        <td>
-                          <span style={{ fontSize: '12.5px', color: 'var(--t-800)' }}>
+                        <td style={{ padding: '10px 12px' }}>
+                          <div style={{ fontSize: '12.5px', color: 'var(--t-800)', fontWeight: '600' }}>
                             {s.contact_person || '--'}
-                          </span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--t-500)', fontFamily: 'monospace', marginTop: '1px' }}>
+                            📞 {s.mobile}
+                          </div>
                         </td>
-                        <td>
-                          <span style={{ fontSize: '12.5px', color: 'var(--t-800)', fontFamily: 'monospace' }}>
-                            {s.mobile}
-                          </span>
+                        <td style={{ padding: '10px 12px' }}>
+                          <div style={{ fontSize: '11.5px', fontFamily: 'monospace', color: 'var(--t-700)' }}>
+                            GST: <strong>{s.gst_no || '--'}</strong>
+                          </div>
+                          <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--t-500)', marginTop: '1px' }}>
+                            PAN: {s.pan_no || '--'} {s.aadhar_no ? `• UID: ${s.aadhar_no}` : ''}
+                          </div>
                         </td>
-                        <td>
-                          <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--t-700)' }}>
-                            {s.gst_no || '--'}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--t-700)' }}>
-                            {s.pan_no || '--'}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--t-700)' }}>
-                            {s.aadhar_no || '--'}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '12px', color: 'var(--t-600)', maxWidth: '240px', display: 'block' }}>
-                            {s.address || '--'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="badge badge-brand">
+                        <td style={{ padding: '10px 12px' }}>
+                          <span className="badge badge-brand" style={{ fontSize: '10.5px' }}>
                             {s.products_count ?? 0} Products
                           </span>
                         </td>
-                        <td>
-                          <span className={`badge ${s.status === 'Active' ? 'badge-success' : 'badge-inactive'}`}>
+                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                          <span className={`badge ${s.status === 'Active' ? 'badge-success' : 'badge-inactive'}`} style={{ fontSize: '10.5px' }}>
                             {s.status}
                           </span>
                         </td>
