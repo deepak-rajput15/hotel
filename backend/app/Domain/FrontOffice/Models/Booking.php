@@ -24,6 +24,7 @@ class Booking extends Model
         'check_out_at',
         'num_adults',
         'num_children',
+        'co_guests',
         'status',
         'room_rate_per_night',
         'total_nights',
@@ -53,6 +54,7 @@ class Booking extends Model
         'num_adults' => 'integer',
         'num_children' => 'integer',
         'total_nights' => 'integer',
+        'co_guests' => 'array',
     ];
 
     public function hotel(): BelongsTo
@@ -68,6 +70,11 @@ class Booking extends Model
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class);
+    }
+
+    public function bookingGuests(): HasMany
+    {
+        return $this->hasMany(BookingGuest::class);
     }
 
     public function folioItems(): HasMany

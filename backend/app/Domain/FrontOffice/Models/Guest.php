@@ -27,6 +27,7 @@ class Guest extends Model
         'address',
         'city',
         'state',
+        'country',
         'purpose_of_visit',
     ];
 

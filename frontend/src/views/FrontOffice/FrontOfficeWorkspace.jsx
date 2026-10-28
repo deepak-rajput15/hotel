@@ -104,12 +104,14 @@ export default function FrontOfficeWorkspace() {
     address: '',
     city: '',
     state: '',
+    country: 'India',
     purpose_of_visit: 'Business / Leisure',
     room_id: '',
     check_in_at: '',
     expected_check_out_at: '',
     num_adults: 1,
     num_children: 0,
+    co_guests: [],
     special_requests: '',
     room_rate_per_night: '',
     discount_amount: 0,
@@ -201,6 +203,48 @@ export default function FrontOfficeWorkspace() {
     }
   };
 
+  const handleAdultsChange = (newCountVal) => {
+    if (newCountVal === '' || newCountVal === null || newCountVal === undefined) {
+      setCheckInForm(prev => ({ ...prev, num_adults: '' }));
+      return;
+    }
+    const adults = Math.max(1, parseInt(newCountVal, 10) || 1);
+    const needed = adults - 1;
+    let co = [...(checkInForm.co_guests || [])];
+
+    if (co.length < needed) {
+      while (co.length < needed) {
+        co.push({
+          first_name: '',
+          last_name: '',
+          gender: 'FEMALE',
+          age: '',
+          phone: '',
+          id_type: 'AADHAAR',
+          id_number: '',
+          relationship: 'Family',
+          nationality: checkInForm.nationality || 'Indian',
+        });
+      }
+    } else if (co.length > needed) {
+      co = co.slice(0, needed);
+    }
+
+    setCheckInForm(prev => ({
+      ...prev,
+      num_adults: adults,
+      co_guests: co,
+    }));
+  };
+
+  const handleCoGuestChange = (index, field, value) => {
+    const updated = [...(checkInForm.co_guests || [])];
+    if (updated[index]) {
+      updated[index] = { ...updated[index], [field]: value };
+      setCheckInForm(prev => ({ ...prev, co_guests: updated }));
+    }
+  };
+
   const handleQuickAutoFill = () => {
     const now = new Date();
     const checkOut = new Date();
@@ -221,12 +265,26 @@ export default function FrontOfficeWorkspace() {
       address: 'Flat 402, Sea Green Heights, Bandra West',
       city: 'Mumbai',
       state: 'Maharashtra',
+      country: 'India',
       purpose_of_visit: 'Corporate Business / Tech Conference',
       room_id: availRoom ? availRoom.id : '',
       check_in_at: formatDateTimeLocal(now),
       expected_check_out_at: formatDateTimeLocal(checkOut),
       num_adults: 2,
       num_children: 0,
+      co_guests: [
+        {
+          first_name: 'Pooja',
+          last_name: 'Sharma',
+          gender: 'FEMALE',
+          age: 26,
+          phone: '+91 98765 99887',
+          id_type: 'AADHAAR',
+          id_number: '9876-1234-5678',
+          relationship: 'Spouse',
+          nationality: 'Indian',
+        }
+      ],
       special_requests: 'High floor, quiet corner room, extra pillows',
       room_rate_per_night: availRoom ? availRoom.base_price : 2800,
       discount_amount: 0,
@@ -324,6 +382,41 @@ export default function FrontOfficeWorkspace() {
   const handleCheckInSubmit = async (e) => {
     e.preventDefault();
     setActionError('');
+
+    if (!checkInForm.country || !checkInForm.country.trim()) {
+      setActionError('Country is required in Guest Address (Police / Form C compliance).');
+      return;
+    }
+
+    const adultsCount = parseInt(checkInForm.num_adults, 10) || 1;
+    if (adultsCount > 1) {
+      const co = checkInForm.co_guests || [];
+      const needed = adultsCount - 1;
+      if (co.length < needed) {
+        setActionError(`Please fill all required KYC details for all ${adultsCount} occupants staying in the room.`);
+        return;
+      }
+      for (let i = 0; i < needed; i++) {
+        const g = co[i];
+        if (!g.first_name || !g.first_name.trim() || !g.last_name || !g.last_name.trim()) {
+          setActionError(`Guest #${i + 2}: Full Name (First and Last) is required.`);
+          return;
+        }
+        if (!g.age || parseInt(g.age, 10) < 1) {
+          setActionError(`Guest #${i + 2}: Valid Age is required.`);
+          return;
+        }
+        if (!g.phone || !g.phone.trim()) {
+          setActionError(`Guest #${i + 2}: Contact Mobile Number is required.`);
+          return;
+        }
+        if (!g.id_number || !g.id_number.trim()) {
+          setActionError(`Guest #${i + 2}: ID Document Number is required.`);
+          return;
+        }
+      }
+    }
+
     try {
       setSubmitting(true);
       const res = await frontOfficeApi.checkIn(checkInForm);
@@ -343,12 +436,14 @@ export default function FrontOfficeWorkspace() {
           address: '',
           city: '',
           state: '',
+          country: 'India',
           purpose_of_visit: 'Business / Leisure',
           room_id: '',
           check_in_at: '',
           expected_check_out_at: '',
           num_adults: 1,
           num_children: 0,
+          co_guests: [],
           special_requests: '',
           room_rate_per_night: '',
           discount_amount: 0,
@@ -1908,7 +2003,7 @@ export default function FrontOfficeWorkspace() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="form-label">Permanent Address (as on ID)</label>
                       <input
@@ -1939,6 +2034,18 @@ export default function FrontOfficeWorkspace() {
                         className="form-control"
                         value={checkInForm.state}
                         onChange={(e) => setCheckInForm({ ...checkInForm, state: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Country *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. India"
+                        className="form-control"
+                        value={checkInForm.country}
+                        onChange={(e) => setCheckInForm({ ...checkInForm, country: e.target.value })}
                       />
                     </div>
                   </div>
@@ -2097,13 +2204,22 @@ export default function FrontOfficeWorkspace() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '14px' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Adults</label>
+                      <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>Adults *</span>
+                        {parseInt(checkInForm.num_adults, 10) > 1 && (
+                          <span style={{ fontSize: '10.5px', color: '#ea580c', fontWeight: '700' }}>
+                            {parseInt(checkInForm.num_adults, 10) - 1} Co-Guest KYC Req.
+                          </span>
+                        )}
+                      </label>
                       <input
                         type="number"
                         min="1"
+                        max="10"
+                        required
                         className="form-control"
                         value={checkInForm.num_adults}
-                        onChange={(e) => setCheckInForm({ ...checkInForm, num_adults: e.target.value })}
+                        onChange={(e) => handleAdultsChange(e.target.value)}
                       />
                     </div>
 
@@ -2129,6 +2245,179 @@ export default function FrontOfficeWorkspace() {
                     </div>
                   </div>
                 </div>
+
+                {/* SECTION 3.B: MANDATORY ADDITIONAL OCCUPANTS KYC (ALL ROOM GUESTS) */}
+                {parseInt(checkInForm.num_adults, 10) > 1 && (
+                  <div
+                    className="wizard-section"
+                    style={{
+                      background: 'linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%)',
+                      border: '1.5px solid #fed7aa',
+                      borderRadius: '12px',
+                      padding: '18px 20px',
+                      marginBottom: '20px',
+                    }}
+                  >
+                    <div className="wizard-section-header" style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div className="wizard-section-title" style={{ color: '#9a3412', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="wizard-section-badge" style={{ background: '#ffedd5', color: '#9a3412', borderColor: '#fed7aa', fontWeight: '800' }}>
+                          👥
+                        </span>
+                        <span style={{ fontWeight: '800', fontSize: '15px' }}>
+                          Mandatory Additional Room Occupants KYC ({checkInForm.co_guests?.length || (parseInt(checkInForm.num_adults, 10) - 1)} Additional Guests)
+                        </span>
+                      </div>
+                      <span className="badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontWeight: '700', padding: '4px 10px' }}>
+                        Mandatory Police / Form C Compliance
+                      </span>
+                    </div>
+
+                    <p style={{ fontSize: '12.5px', color: '#7c2d12', marginBottom: '16px', lineHeight: 1.5 }}>
+                      Room occupancy is set to <strong>{checkInForm.num_adults} Adults</strong>. Per Government & Police Regulations, complete KYC and ID verification details are mandatory for <strong>every single occupant</strong> staying in the room.
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {checkInForm.co_guests?.map((guest, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            background: '#ffffff',
+                            border: '1.5px solid #fed7aa',
+                            borderRadius: '10px',
+                            padding: '16px',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #fef3c7', paddingBottom: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ background: '#ea580c', color: '#fff', fontSize: '11px', fontWeight: '800', borderRadius: '50%', width: '22px', height: '22px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {idx + 2}
+                              </span>
+                              <strong style={{ fontSize: '13.5px', color: '#1e293b' }}>
+                                Additional Guest #{idx + 2} Details *
+                              </strong>
+                            </div>
+                            <span style={{ fontSize: '11px', color: '#ea580c', fontWeight: '600' }}>
+                              Required Document & Contact Info
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label className="form-label">First Name *</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. Pooja"
+                                className="form-control"
+                                value={guest.first_name || ''}
+                                onChange={(e) => handleCoGuestChange(idx, 'first_name', e.target.value)}
+                              />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label className="form-label">Last Name *</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. Sharma"
+                                className="form-control"
+                                value={guest.last_name || ''}
+                                onChange={(e) => handleCoGuestChange(idx, 'last_name', e.target.value)}
+                              />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label className="form-label">Gender *</label>
+                              <select
+                                className="form-select"
+                                required
+                                value={guest.gender || 'FEMALE'}
+                                onChange={(e) => handleCoGuestChange(idx, 'gender', e.target.value)}
+                              >
+                                <option value="FEMALE">Female</option>
+                                <option value="MALE">Male</option>
+                                <option value="OTHER">Other</option>
+                              </select>
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label className="form-label">Age *</label>
+                              <input
+                                type="number"
+                                required
+                                min="1"
+                                max="120"
+                                placeholder="e.g. 26"
+                                className="form-control"
+                                value={guest.age || ''}
+                                onChange={(e) => handleCoGuestChange(idx, 'age', e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.2fr 1.3fr 1.1fr', gap: '12px' }}>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label className="form-label">Relationship *</label>
+                              <select
+                                className="form-select"
+                                required
+                                value={guest.relationship || 'Spouse'}
+                                onChange={(e) => handleCoGuestChange(idx, 'relationship', e.target.value)}
+                              >
+                                <option value="Spouse">Spouse / Partner</option>
+                                <option value="Family">Family Member</option>
+                                <option value="Child">Child / Dependent</option>
+                                <option value="Friend">Friend</option>
+                                <option value="Colleague">Colleague / Business</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label className="form-label">ID Type *</label>
+                              <select
+                                className="form-select"
+                                required
+                                value={guest.id_type || 'AADHAAR'}
+                                onChange={(e) => handleCoGuestChange(idx, 'id_type', e.target.value)}
+                              >
+                                <option value="AADHAAR">Aadhaar Card (UIDAI)</option>
+                                <option value="PASSPORT">Passport</option>
+                                <option value="DRIVING_LICENSE">Driving License</option>
+                                <option value="VOTER_ID">Voter ID Card</option>
+                              </select>
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label className="form-label">ID / Document Number *</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="Document ID Number"
+                                className="form-control"
+                                value={guest.id_number || ''}
+                                onChange={(e) => handleCoGuestChange(idx, 'id_number', e.target.value)}
+                              />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label className="form-label">Mobile Number *</label>
+                              <input
+                                type="tel"
+                                required
+                                placeholder="e.g. 9876543210"
+                                className="form-control"
+                                value={guest.phone || ''}
+                                onChange={(e) => handleCoGuestChange(idx, 'phone', e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* SECTION 4: ADVANCE DEPOSIT & REAL-TIME BILLING PREVIEW */}
                 <div
@@ -2307,8 +2596,20 @@ export default function FrontOfficeWorkspace() {
                   Guest Folio & Billing Ledger &bull; Room {showFolioModal.room?.room_number}
                 </h3>
                 <p style={{ fontSize: '12.5px', color: 'var(--t-500)' }}>
-                  Guest: <strong>{showFolioModal.guest?.first_name} {showFolioModal.guest?.last_name}</strong> ({showFolioModal.guest?.phone})
+                  Guest: <strong>{showFolioModal.guest?.first_name} {showFolioModal.guest?.last_name}</strong> ({showFolioModal.guest?.phone}) &bull; {showFolioModal.guest?.address || ''} {showFolioModal.guest?.city ? `${showFolioModal.guest?.city}, ` : ''}<strong>{showFolioModal.guest?.country || 'India'}</strong>
                 </p>
+                {((showFolioModal.booking_guests && showFolioModal.booking_guests.length > 0) || (showFolioModal.co_guests && showFolioModal.co_guests.length > 0)) && (
+                  <div style={{ marginTop: '6px', padding: '6px 12px', background: '#fff7ed', border: '1px solid #ffedd5', borderRadius: '6px', fontSize: '12px', color: '#9a3412' }}>
+                    <strong>👥 Room Occupants ({1 + (showFolioModal.booking_guests?.length || showFolioModal.co_guests?.length || 0)} Total):</strong>
+                    <div style={{ marginTop: '3px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {(showFolioModal.booking_guests || showFolioModal.co_guests).map((cg, idx) => (
+                        <span key={idx} style={{ background: '#ffedd5', padding: '2px 8px', borderRadius: '4px', fontWeight: '500' }}>
+                          #{idx + 2} {cg.first_name} {cg.last_name} ({cg.gender || 'Guest'}, {cg.age ? `Age ${cg.age}` : ''}) &bull; {cg.id_type || 'ID'}: {cg.id_number}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <button onClick={() => setShowFolioModal(null)} className="btn btn-secondary btn-sm">✕</button>
             </div>
@@ -2721,7 +3022,12 @@ export default function FrontOfficeWorkspace() {
                 <div style={{ fontWeight: '800', color: 'var(--t-900)', fontSize: '14px' }}>{invoiceData.guest?.name}</div>
                 <div>Phone: {invoiceData.guest?.phone}</div>
                 <div>ID Proof: {invoiceData.guest?.id_type} ({invoiceData.guest?.id_number})</div>
-                <div>Address: {invoiceData.guest?.address || 'India'}</div>
+                <div>Address: {invoiceData.guest?.address || ''} {invoiceData.guest?.country ? `(${invoiceData.guest.country})` : '(India)'}</div>
+                {invoiceData.guest?.co_guests && invoiceData.guest.co_guests.length > 0 && (
+                  <div style={{ marginTop: '4px', fontSize: '11.5px', color: '#64748b' }}>
+                    <strong>Co-Occupants:</strong> {invoiceData.guest.co_guests.map(cg => `${cg.first_name} ${cg.last_name} (${cg.relationship || 'Guest'})`).join(', ')}
+                  </div>
+                )}
               </div>
 
               <div style={{ textAlign: 'right' }}>

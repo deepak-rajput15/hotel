@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\FrontOffice;
 
 use App\Domain\FrontOffice\Models\Booking;
+use App\Domain\FrontOffice\Models\BookingGuest;
 use App\Domain\FrontOffice\Models\FolioItem;
 use App\Domain\FrontOffice\Models\Guest;
 use App\Domain\FrontOffice\Models\Payment;
@@ -566,7 +567,7 @@ class FrontOfficeController extends Controller
         $hotel = $this->getHotel($request);
         $status = $request->query('status'); // CHECKED_IN, RESERVED, CHECKED_OUT, ALL
 
-        $query = $hotel->bookings()->with(['guest', 'room', 'payments', 'folioItems']);
+        $query = $hotel->bookings()->with(['guest', 'room', 'bookingGuests', 'payments', 'folioItems']);
 
         if ($status && $status !== 'ALL') {
             $query->where('status', $status);
@@ -590,7 +591,7 @@ class FrontOfficeController extends Controller
         $hotel = $this->getHotel($request);
 
         $booking = $hotel->bookings()
-            ->with(['guest', 'room', 'folioItems', 'payments'])
+            ->with(['guest', 'room', 'bookingGuests', 'folioItems', 'payments'])
             ->findOrFail($id);
 
         return response()->json([
@@ -619,6 +620,7 @@ class FrontOfficeController extends Controller
             'address' => 'nullable|string',
             'city' => 'nullable|string|max:100',
             'state' => 'nullable|string|max:100',
+            'country' => 'nullable|string|max:100',
             'purpose_of_visit' => 'nullable|string|max:150',
 
             // Stay parameters
@@ -629,6 +631,18 @@ class FrontOfficeController extends Controller
             'num_children' => 'nullable|integer|min:0',
             'special_requests' => 'nullable|string',
 
+            // Additional Co-Guests KYC (Mandatory for all occupants in room)
+            'co_guests' => 'nullable|array',
+            'co_guests.*.first_name' => 'required|string|max:100',
+            'co_guests.*.last_name' => 'required|string|max:100',
+            'co_guests.*.gender' => 'required|string|in:MALE,FEMALE,OTHER,Male,Female,Other',
+            'co_guests.*.age' => 'required|integer|min:1|max:120',
+            'co_guests.*.id_type' => 'required|in:AADHAAR,PASSPORT,DRIVING_LICENSE,VOTER_ID',
+            'co_guests.*.id_number' => 'required|string|max:100',
+            'co_guests.*.phone' => 'nullable|string|max:30',
+            'co_guests.*.relationship' => 'nullable|string|max:50',
+            'co_guests.*.nationality' => 'nullable|string|max:100',
+
             // Tariff & Billing
             'room_rate_per_night' => 'nullable|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',
@@ -637,7 +651,7 @@ class FrontOfficeController extends Controller
             'transaction_reference' => 'nullable|string|max:100',
         ]);
 
-        return DB::transaction(function () use ($hotel, $validated) {
+        return DB::transaction(function () use ($hotel, $validated, $request) {
             $room = $hotel->rooms()->where('id', $validated['room_id'])->lockForUpdate()->firstOrFail();
 
             $checkInTime = !empty($validated['check_in_at'])
@@ -721,10 +735,23 @@ class FrontOfficeController extends Controller
                 'address' => $validated['address'] ?? null,
                 'city' => $validated['city'] ?? null,
                 'state' => $validated['state'] ?? null,
+                'country' => $validated['country'] ?? 'India',
                 'purpose_of_visit' => $validated['purpose_of_visit'] ?? 'Business / Leisure',
             ]);
 
-            // 2. Calculate duration
+            // 2. Validate Multi-Occupant Co-Guests (All guests in room must be registered)
+            $adultCount = (int) ($validated['num_adults'] ?? 1);
+            $coGuests = $validated['co_guests'] ?? [];
+
+            if ($request->has('co_guests') && $adultCount > 1 && count($coGuests) < ($adultCount - 1)) {
+                $missing = ($adultCount - 1) - count($coGuests);
+                return response()->json([
+                    'success' => false,
+                    'message' => "Room has {$adultCount} adult occupants. Details for all occupants are required. Please provide full KYC details for the remaining {$missing} guest(s).",
+                ], 422);
+            }
+
+            // 3. Calculate duration
             $nights = max(1, (int) $checkInTime->copy()->startOfDay()->diffInDays($checkOutTime->copy()->startOfDay()));
 
             $ratePerNight = isset($validated['room_rate_per_night']) && $validated['room_rate_per_night'] > 0
@@ -741,7 +768,7 @@ class FrontOfficeController extends Controller
                 ], 422);
             }
 
-            // 3. Create Booking (Collision-proof booking number)
+            // 4. Create Booking (Collision-proof booking number)
             $datePrefix = Carbon::now()->format('Ymd');
             $countToday = Booking::where('hotel_id', $hotel->id)
                 ->whereDate('created_at', Carbon::today())
@@ -755,8 +782,9 @@ class FrontOfficeController extends Controller
                 'room_id' => $room->id,
                 'check_in_at' => $checkInTime,
                 'expected_check_out_at' => $checkOutTime,
-                'num_adults' => $validated['num_adults'] ?? 1,
+                'num_adults' => $adultCount,
                 'num_children' => $validated['num_children'] ?? 0,
+                'co_guests' => $coGuests,
                 'status' => $bookingStatus,
                 'room_rate_per_night' => $ratePerNight,
                 'total_nights' => $nights,
@@ -766,13 +794,30 @@ class FrontOfficeController extends Controller
                 'special_requests' => $validated['special_requests'] ?? null,
             ]);
 
-            // 4. Mark room as OCCUPIED only if immediate check-in today
+            // 5. Store relational Co-Guests records for Police / Form C Compliance
+            foreach ($coGuests as $cg) {
+                BookingGuest::create([
+                    'booking_id' => $booking->id,
+                    'hotel_id' => $hotel->id,
+                    'first_name' => $cg['first_name'],
+                    'last_name' => $cg['last_name'],
+                    'gender' => strtoupper($cg['gender'] ?? 'MALE'),
+                    'age' => (int) $cg['age'],
+                    'phone' => $cg['phone'] ?? null,
+                    'id_type' => $cg['id_type'],
+                    'id_number' => $cg['id_number'],
+                    'relationship' => $cg['relationship'] ?? 'Family',
+                    'nationality' => $cg['nationality'] ?? ($validated['nationality'] ?? 'India'),
+                ]);
+            }
+
+            // 6. Mark room as OCCUPIED only if immediate check-in today
             if (!$isFutureReservation) {
                 $room->status = 'OCCUPIED';
                 $room->save();
             }
 
-            // 5. Post Room Tariff to Folio
+            // 7. Post Room Tariff to Folio
             FolioItem::create([
                 'booking_id' => $booking->id,
                 'item_type' => 'ROOM_CHARGE',
@@ -785,7 +830,7 @@ class FrontOfficeController extends Controller
                 'charged_at' => $checkInTime,
             ]);
 
-            // 6. Record Advance Deposit if provided
+            // 8. Record Advance Deposit if provided
             $advanceAmount = (float) ($validated['advance_deposit_amount'] ?? 0);
             if ($advanceAmount > 0) {
                 Payment::create([
@@ -801,7 +846,7 @@ class FrontOfficeController extends Controller
                 ]);
             }
 
-            // 7. Calculate final totals, taxes, and balance
+            // 9. Calculate final totals, taxes, and balance
             $booking->recalculateTotals();
 
             $message = $isFutureReservation
@@ -812,7 +857,7 @@ class FrontOfficeController extends Controller
                 'success' => true,
                 'message' => $message,
                 'is_future_reservation' => $isFutureReservation,
-                'booking' => $booking->fresh(['guest', 'room', 'folioItems', 'payments']),
+                'booking' => $booking->fresh(['guest', 'room', 'bookingGuests', 'folioItems', 'payments']),
             ], 201);
         });
     }
@@ -874,7 +919,7 @@ class FrontOfficeController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Guest {$booking->guest?->full_name} confirmed and checked into Room {$room->room_number} successfully.",
-                'booking' => $booking->fresh(['guest', 'room', 'folioItems', 'payments']),
+                'booking' => $booking->fresh(['guest', 'room', 'bookingGuests', 'folioItems', 'payments']),
             ]);
         });
     }
@@ -1036,6 +1081,8 @@ class FrontOfficeController extends Controller
                     'id_type' => $booking->guest?->id_type,
                     'id_number' => $booking->guest?->id_number,
                     'address' => $booking->guest?->address,
+                    'country' => $booking->guest?->country ?? 'India',
+                    'co_guests' => $booking->bookingGuests,
                 ],
                 'stay' => [
                     'room_number' => $booking->room?->room_number,
@@ -1062,7 +1109,7 @@ class FrontOfficeController extends Controller
                 'success' => true,
                 'message' => "Guest {$booking->guest?->full_name} checked out. Room {$booking->room?->room_number} marked DIRTY for housekeeping.",
                 'invoice' => $invoiceData,
-                'booking' => $booking->fresh(['guest', 'room', 'folioItems', 'payments']),
+                'booking' => $booking->fresh(['guest', 'room', 'bookingGuests', 'folioItems', 'payments']),
             ]);
         });
     }

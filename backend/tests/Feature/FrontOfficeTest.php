@@ -301,4 +301,88 @@ class FrontOfficeTest extends TestCase
             ]);
         $this->assertStringContainsString('already booked', $conflictResponse->json('message'));
     }
+
+    /**
+     * Test country column and mandatory co-guests KYC registration.
+     */
+    public function test_checkin_supports_country_and_enforces_all_room_guests_kyc(): void
+    {
+        $hotel = Hotel::first();
+        $frontDeskStaff = User::where('email', 'frontdesk.priya@apexhospitality.com')->first();
+        $room = Room::where('hotel_id', $hotel->id)->where('status', 'AVAILABLE')->first();
+
+        // 1. Room with 2 adults but missing co-guest details -> Rejected with 422!
+        $missingGuestRes = $this->actingAs($frontDeskStaff)
+            ->withHeaders(['X-Hotel-ID' => $hotel->id])
+            ->postJson('/api/v1/front-office/check-in', [
+                'first_name' => 'Kunal',
+                'last_name' => 'Kapoor',
+                'phone' => '+91 98888 11223',
+                'nationality' => 'Indian',
+                'id_type' => 'AADHAAR',
+                'id_number' => '1234-5678-9012',
+                'address' => '10 Marine Drive',
+                'city' => 'Mumbai',
+                'state' => 'Maharashtra',
+                'country' => 'India',
+                'room_id' => $room->id,
+                'num_adults' => 2, // 2 Adults!
+                'co_guests' => [], // Empty co-guests!
+                'expected_check_out_at' => Carbon::now()->addDay()->toDateTimeString(),
+            ]);
+
+        $missingGuestRes->assertStatus(422)
+            ->assertJsonPath('success', false);
+        $this->assertStringContainsString('Details for all occupants are required', $missingGuestRes->json('message'));
+
+        // 2. Room with 2 adults and complete KYC for 2nd occupant -> Accepted (201 Created)!
+        $validRes = $this->actingAs($frontDeskStaff)
+            ->withHeaders(['X-Hotel-ID' => $hotel->id])
+            ->postJson('/api/v1/front-office/check-in', [
+                'first_name' => 'Kunal',
+                'last_name' => 'Kapoor',
+                'phone' => '+91 98888 11223',
+                'nationality' => 'Indian',
+                'id_type' => 'AADHAAR',
+                'id_number' => '1234-5678-9012',
+                'address' => '10 Marine Drive',
+                'city' => 'Mumbai',
+                'state' => 'Maharashtra',
+                'country' => 'India',
+                'room_id' => $room->id,
+                'num_adults' => 2,
+                'co_guests' => [
+                    [
+                        'first_name' => 'Pooja',
+                        'last_name' => 'Kapoor',
+                        'gender' => 'FEMALE',
+                        'age' => 27,
+                        'phone' => '+91 98888 44556',
+                        'id_type' => 'AADHAAR',
+                        'id_number' => '9876-5432-1098',
+                        'relationship' => 'Spouse',
+                        'nationality' => 'Indian',
+                    ],
+                ],
+                'expected_check_out_at' => Carbon::now()->addDay()->toDateTimeString(),
+            ]);
+
+        $validRes->assertStatus(201);
+        $bookingId = $validRes->json('booking.id');
+
+        // Verify country is saved in guests table
+        $this->assertDatabaseHas('guests', [
+            'first_name' => 'Kunal',
+            'country' => 'India',
+        ]);
+
+        // Verify co-guest is saved in booking_guests table
+        $this->assertDatabaseHas('booking_guests', [
+            'booking_id' => $bookingId,
+            'first_name' => 'Pooja',
+            'last_name' => 'Kapoor',
+            'id_number' => '9876-5432-1098',
+            'relationship' => 'Spouse',
+        ]);
+    }
 }

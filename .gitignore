@@ -8,3 +8,4 @@ vendor/
 dist/
 dist-ssr/
 *.log
+hotel_live_credentials.*
