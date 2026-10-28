@@ -54,11 +54,13 @@ export default function StoreInventoryWorkspace() {
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [expiryFilter, setExpiryFilter] = useState('ALL'); // 'ALL', 'EXPIRED', 'EXPIRING_SOON'
 
   // Modals
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [showStockModal, setShowStockModal] = useState(null); // product object
   const [showSupplierModal, setShowSupplierModal] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(null); // product object for inspecting all batches
   const [editProduct, setEditProduct] = useState(null);
 
   // Form states
@@ -82,6 +84,8 @@ export default function StoreInventoryWorkspace() {
     quantity: '',
     reason: 'Vendor Delivery GRN',
     notes: '',
+    batch_no: '',
+    expiry_period: '',
   });
 
   const [supplierForm, setSupplierForm] = useState({
@@ -102,7 +106,7 @@ export default function StoreInventoryWorkspace() {
 
   useEffect(() => {
     fetchData();
-  }, [categoryFilter, lowStockOnly, currentHotel?.id]);
+  }, [categoryFilter, lowStockOnly, expiryFilter, currentHotel?.id]);
 
   const fetchData = async () => {
     try {
@@ -112,6 +116,7 @@ export default function StoreInventoryWorkspace() {
       const params = {};
       if (categoryFilter !== 'ALL') params.category = categoryFilter;
       if (lowStockOnly) params.low_stock = true;
+      if (expiryFilter !== 'ALL') params.expiry_status = expiryFilter;
       if (searchTerm) params.search = searchTerm;
 
       const [prodRes, suppRes] = await Promise.all([
@@ -273,8 +278,13 @@ export default function StoreInventoryWorkspace() {
       )}
 
       {/* Metrics Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '18px' }}>
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '18px' }}>
+        <div
+          className="card"
+          onClick={() => { setCategoryFilter('ALL'); setExpiryFilter('ALL'); setLowStockOnly(false); }}
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', cursor: 'pointer' }}
+          title="Reset all filters and view all products"
+        >
           <div style={{ width: '38px', height: '38px', borderRadius: 'var(--r-card)', background: 'var(--brand-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)', flexShrink: 0 }}>
             <Package size={20} />
           </div>
@@ -291,7 +301,7 @@ export default function StoreInventoryWorkspace() {
 
         <div
           className="card"
-          onClick={() => setLowStockOnly(!lowStockOnly)}
+          onClick={() => { setLowStockOnly(!lowStockOnly); if (!lowStockOnly) setExpiryFilter('ALL'); }}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -314,6 +324,76 @@ export default function StoreInventoryWorkspace() {
             </div>
             <div style={{ fontSize: '10.5px', color: '#b91c1c' }}>
               {lowStockOnly ? 'Filtering active (reset)' : 'Click to filter'}
+            </div>
+          </div>
+        </div>
+
+        {/* Expired Stock Card (Red Highlight Alert) */}
+        <div
+          className="card"
+          onClick={() => {
+            const next = expiryFilter === 'EXPIRED' ? 'ALL' : 'EXPIRED';
+            setExpiryFilter(next);
+            if (next !== 'ALL') setLowStockOnly(false);
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '14px 16px',
+            cursor: 'pointer',
+            border: expiryFilter === 'EXPIRED' ? '2px solid #dc2626' : undefined,
+            background: (metrics.expired_count || 0) > 0 ? '#fef2f2' : 'white',
+          }}
+          title="Click to filter products that are expired or have expired stock batches"
+        >
+          <div style={{ width: '38px', height: '38px', borderRadius: 'var(--r-card)', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0 }}>
+            <AlertCircle size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#991b1b', textTransform: 'uppercase' }}>
+              Expired Stock
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: '800', color: '#dc2626' }}>
+              {metrics.expired_count || 0} Items
+            </div>
+            <div style={{ fontSize: '10.5px', color: '#b91c1c' }}>
+              {expiryFilter === 'EXPIRED' ? 'Filtering expired (reset)' : 'Immediate discard alert'}
+            </div>
+          </div>
+        </div>
+
+        {/* Expiring Soon Card (Yellow Highlight Warning) */}
+        <div
+          className="card"
+          onClick={() => {
+            const next = expiryFilter === 'EXPIRING_SOON' ? 'ALL' : 'EXPIRING_SOON';
+            setExpiryFilter(next);
+            if (next !== 'ALL') setLowStockOnly(false);
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '14px 16px',
+            cursor: 'pointer',
+            border: expiryFilter === 'EXPIRING_SOON' ? '2px solid #d97706' : undefined,
+            background: (metrics.expiring_soon_count || 0) > 0 ? '#fffdf0' : 'white',
+          }}
+          title="Click to filter products due to expire within 1 month"
+        >
+          <div style={{ width: '38px', height: '38px', borderRadius: 'var(--r-card)', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', flexShrink: 0 }}>
+            <Calendar size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#92400e', textTransform: 'uppercase' }}>
+              Due in 1 Month
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: '800', color: '#d97706' }}>
+              {metrics.expiring_soon_count || 0} Items
+            </div>
+            <div style={{ fontSize: '10.5px', color: '#b45309' }}>
+              {expiryFilter === 'EXPIRING_SOON' ? 'Filtering active (reset)' : 'Priority clearance stock'}
             </div>
           </div>
         </div>
@@ -458,9 +538,9 @@ export default function StoreInventoryWorkspace() {
               ))}
             </div>
 
-            {/* Search & Low Stock Toggle Bar */}
+            {/* Search & Filter Controls */}
             <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid var(--border-sub)', background: '#ffffff' }}>
-              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, maxWidth: '380px' }}>
+              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '8px', flex: 1, maxWidth: '340px' }}>
                 <div style={{ position: 'relative', flex: 1 }}>
                   <Search size={14} style={{ position: 'absolute', left: '10px', top: '9px', color: 'var(--t-500)' }} />
                   <input
@@ -477,39 +557,113 @@ export default function StoreInventoryWorkspace() {
                 </button>
               </form>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: lowStockOnly ? '#dc2626' : 'var(--t-700)' }}>
-                <input
-                  type="checkbox"
-                  checked={lowStockOnly}
-                  onChange={(e) => setLowStockOnly(e.target.checked)}
-                />
-                <span>⚠️ Show Only Low Stock ({metrics.low_stock_count})</span>
-              </label>
+              {/* Quick Status / Expiry Filter Chips */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => { setLowStockOnly(false); setExpiryFilter('ALL'); }}
+                  style={{
+                    padding: '4px 9px',
+                    borderRadius: 'var(--r-pill)',
+                    border: '1px solid',
+                    borderColor: !lowStockOnly && expiryFilter === 'ALL' ? 'var(--brand)' : 'var(--border-sub)',
+                    background: !lowStockOnly && expiryFilter === 'ALL' ? 'var(--brand)' : 'white',
+                    color: !lowStockOnly && expiryFilter === 'ALL' ? 'white' : 'var(--t-700)',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  All ({metrics.total_products})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setLowStockOnly(!lowStockOnly); if (!lowStockOnly) setExpiryFilter('ALL'); }}
+                  style={{
+                    padding: '4px 9px',
+                    borderRadius: 'var(--r-pill)',
+                    border: '1px solid',
+                    borderColor: lowStockOnly ? '#ef4444' : 'var(--border-sub)',
+                    background: lowStockOnly ? '#ef4444' : '#fff5f5',
+                    color: lowStockOnly ? 'white' : '#b91c1c',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ⚠️ Low Stock ({metrics.low_stock_count})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = expiryFilter === 'EXPIRED' ? 'ALL' : 'EXPIRED';
+                    setExpiryFilter(next);
+                    if (next !== 'ALL') setLowStockOnly(false);
+                  }}
+                  style={{
+                    padding: '4px 9px',
+                    borderRadius: 'var(--r-pill)',
+                    border: '1px solid',
+                    borderColor: expiryFilter === 'EXPIRED' ? '#dc2626' : '#fca5a5',
+                    background: expiryFilter === 'EXPIRED' ? '#dc2626' : '#fef2f2',
+                    color: expiryFilter === 'EXPIRED' ? 'white' : '#991b1b',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                  title="Filter products that are expired or have expired stock batches"
+                >
+                  ⛔ Expired ({metrics.expired_count || 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = expiryFilter === 'EXPIRING_SOON' ? 'ALL' : 'EXPIRING_SOON';
+                    setExpiryFilter(next);
+                    if (next !== 'ALL') setLowStockOnly(false);
+                  }}
+                  style={{
+                    padding: '4px 9px',
+                    borderRadius: 'var(--r-pill)',
+                    border: '1px solid',
+                    borderColor: expiryFilter === 'EXPIRING_SOON' ? '#d97706' : '#fde68a',
+                    background: expiryFilter === 'EXPIRING_SOON' ? '#d97706' : '#fffdf0',
+                    color: expiryFilter === 'EXPIRING_SOON' ? 'white' : '#92400e',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                  title="Filter products due to expire within 1 month"
+                >
+                  ⚠️ Due in 1 Mo ({metrics.expiring_soon_count || 0})
+                </button>
+              </div>
             </div>
 
             {/* Products Table (Screen-Fitted Proportional Layout) */}
             <div style={{ overflowX: 'auto', width: '100%' }}>
-              <table className="data-table" style={{ width: '100%', minWidth: '760px', tableLayout: 'auto' }}>
+              <table className="data-table" style={{ width: '100%', minWidth: '780px', tableLayout: 'auto' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc' }}>
-                    <th style={{ width: '34%', padding: '10px 14px' }}>Product & Supplier Info</th>
-                    <th style={{ width: '15%', padding: '10px 12px' }}>Category & Unit</th>
-                    <th style={{ width: '13%', padding: '10px 12px' }}>Rate (+GST)</th>
-                    <th style={{ width: '18%', padding: '10px 12px' }}>Current Stock</th>
-                    <th style={{ width: '8%', padding: '10px 10px', textAlign: 'center' }}>Status</th>
-                    <th style={{ width: '12%', padding: '10px 14px', textAlign: 'right' }}>Actions</th>
+                    <th style={{ width: '28%', padding: '10px 14px' }}>Product & Supplier Info</th>
+                    <th style={{ width: '13%', padding: '10px 12px' }}>Category & Unit</th>
+                    <th style={{ width: '11%', padding: '10px 12px' }}>Rate (+GST)</th>
+                    <th style={{ width: '14%', padding: '10px 12px' }}>Current Stock</th>
+                    <th style={{ width: '21%', padding: '10px 12px' }}>Expiry & Batch Status</th>
+                    <th style={{ width: '5%', padding: '10px 6px', textAlign: 'center' }}>Status</th>
+                    <th style={{ width: '8%', padding: '10px 14px', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '36px' }}>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '36px' }}>
                         <div style={{ color: 'var(--t-500)', fontSize: '13px' }}>Loading products...</div>
                       </td>
                     </tr>
                   ) : products.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '40px' }}>
                         <Boxes size={30} color="var(--t-400)" style={{ margin: '0 auto 10px', display: 'block' }} />
                         <div style={{ fontSize: '14.5px', fontWeight: '700', color: 'var(--t-800)' }}>
                           No Products Found
@@ -525,9 +679,26 @@ export default function StoreInventoryWorkspace() {
                     </tr>
                   ) : (
                     products.map((p) => {
+                      const isExpired = p.expiry_status === 'EXPIRED';
+                      const isExpiringSoon = p.expiry_status === 'EXPIRING_SOON';
                       const isLow = parseFloat(p.current_stock) <= parseFloat(p.minimum_stock_qty);
+
+                      // Row background color-coding
+                      let rowBg = undefined;
+                      let borderLeft = undefined;
+                      if (isExpired) {
+                        rowBg = '#fef2f2'; // Red highlight
+                        borderLeft = '3px solid #dc2626';
+                      } else if (isExpiringSoon) {
+                        rowBg = '#fffdf0'; // Yellow highlight
+                        borderLeft = '3px solid #f59e0b';
+                      } else if (isLow) {
+                        rowBg = '#fff5f5';
+                        borderLeft = '3px solid #f87171';
+                      }
+
                       return (
-                        <tr key={p.id} style={{ background: isLow ? '#fff5f5' : undefined }}>
+                        <tr key={p.id} style={{ background: rowBg, borderLeft: borderLeft }}>
                           <td style={{ padding: '10px 14px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                               <span className="badge badge-brand" style={{ fontFamily: 'monospace', fontSize: '10.5px', padding: '1px 6px' }}>
@@ -538,13 +709,12 @@ export default function StoreInventoryWorkspace() {
                               </strong>
                             </div>
                             {p.description && (
-                              <div style={{ fontSize: '11px', color: 'var(--t-500)', marginTop: '2px', maxWidth: '340px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--t-500)', marginTop: '2px', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {p.description}
                               </div>
                             )}
                             <div style={{ fontSize: '10.5px', color: 'var(--t-500)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span>🏢 {p.supplier?.firm_name || 'Direct Procurement'}</span>
-                              {p.expiry_period && <span>&bull; ⏳ Exp: {p.expiry_period}</span>}
                             </div>
                           </td>
                           <td style={{ padding: '10px 12px' }}>
@@ -577,11 +747,77 @@ export default function StoreInventoryWorkspace() {
                               )}
                             </div>
                             <div style={{ fontSize: '10.5px', color: 'var(--t-500)', marginTop: '1px' }}>
-                              Min Threshold: {parseFloat(p.minimum_stock_qty)} {p.unit}
+                              Min: {parseFloat(p.minimum_stock_qty)} {p.unit}
                             </div>
                           </td>
-                          <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                            <span className={`badge ${p.status === 'Active' ? 'badge-success' : 'badge-inactive'}`} style={{ fontSize: '10.5px', padding: '2px 7px' }}>
+
+                          {/* EXPIRY & BATCH STATUS (Dedicated Prominent Column) */}
+                          <td style={{ padding: '10px 12px' }}>
+                            {isExpired ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: '4px', padding: '2px 7px', fontSize: '11px', fontWeight: '700' }}>
+                                <span>⛔ EXPIRED ({p.expiry_period || 'Past'})</span>
+                              </div>
+                            ) : isExpiringSoon ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '4px', padding: '2px 7px', fontSize: '11px', fontWeight: '700' }}>
+                                <span>⚠️ EXPIRING SOON</span>
+                                <span style={{ fontSize: '10px', opacity: 0.9 }}>
+                                  {p.days_until_expiry !== null ? `(${Math.max(1, p.days_until_expiry)}d left)` : `(${p.expiry_period})`}
+                                </span>
+                              </div>
+                            ) : p.expiry_period ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', borderRadius: '4px', padding: '2px 7px', fontSize: '11px', fontWeight: '600' }}>
+                                <span>✓ Valid: {p.expiry_period}</span>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: 'var(--t-400)' }}>No Expiry Set</span>
+                            )}
+
+                            {/* Older Stock / Batch Expiry Alert */}
+                            {p.oldest_expiring_batch && (
+                              <div
+                                style={{
+                                  marginTop: '4px',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '10px',
+                                  fontWeight: '600',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  background: p.oldest_expiring_batch.expiry_status === 'EXPIRED' ? '#fee2e2' : '#fef3c7',
+                                  color: p.oldest_expiring_batch.expiry_status === 'EXPIRED' ? '#991b1b' : '#92400e',
+                                  border: `1px dashed ${p.oldest_expiring_batch.expiry_status === 'EXPIRED' ? '#f87171' : '#fbbf24'}`,
+                                }}
+                              >
+                                <span>
+                                  {p.oldest_expiring_batch.expiry_status === 'EXPIRED' ? '🚨' : '⚠️'} Old Stock ({p.oldest_expiring_batch.quantity} {p.unit}): {p.oldest_expiring_batch.expiry_status === 'EXPIRED' ? `Expired (${p.oldest_expiring_batch.expiry_period})` : `Due in ${p.oldest_expiring_batch.days_remaining}d`}
+                                </span>
+                              </div>
+                            )}
+
+                            {p.active_batches && p.active_batches.length > 1 && (
+                              <button
+                                onClick={() => setShowBatchModal(p)}
+                                style={{
+                                  marginTop: '3px',
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
+                                  color: 'var(--brand)',
+                                  fontSize: '10.5px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  display: 'block',
+                                }}
+                              >
+                                View All {p.active_batches.length} Batches →
+                              </button>
+                            )}
+                          </td>
+
+                          <td style={{ padding: '10px 6px', textAlign: 'center' }}>
+                            <span className={`badge ${p.status === 'Active' ? 'badge-success' : 'badge-inactive'}`} style={{ fontSize: '10px', padding: '2px 6px' }}>
                               {p.status}
                             </span>
                           </td>
@@ -595,6 +831,8 @@ export default function StoreInventoryWorkspace() {
                                     quantity: '',
                                     reason: 'Vendor Delivery GRN',
                                     notes: '',
+                                    batch_no: '',
+                                    expiry_period: p.expiry_period || '',
                                   });
                                 }}
                                 className="btn btn-secondary btn-sm"
@@ -1060,6 +1298,31 @@ export default function StoreInventoryWorkspace() {
                 </div>
               </div>
 
+              {stockForm.type === 'ADD' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Batch No. (Optional)</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. BAT-2026-01 (or auto)"
+                      value={stockForm.batch_no}
+                      onChange={(e) => setStockForm({ ...stockForm, batch_no: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Batch Expiry (MM/yyyy)</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. 12/2026"
+                      value={stockForm.expiry_period}
+                      onChange={(e) => setStockForm({ ...stockForm, expiry_period: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="form-group">
                 <label className="form-label">Notes / Challan Number</label>
                 <input
@@ -1070,6 +1333,30 @@ export default function StoreInventoryWorkspace() {
                   onChange={(e) => setStockForm({ ...stockForm, notes: e.target.value })}
                 />
               </div>
+
+              {/* Batches breakdown in Adjust Modal */}
+              {showStockModal.active_batches && showStockModal.active_batches.length > 0 && (
+                <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border-sub)', marginBottom: '14px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--t-600)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Current Stock Batches ({showStockModal.active_batches.length})
+                  </div>
+                  <div style={{ maxHeight: '110px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {showStockModal.active_batches.map((b, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', padding: '4px 8px', background: b.expiry_status === 'EXPIRED' ? '#fee2e2' : b.expiry_status === 'EXPIRING_SOON' ? '#fef3c7' : 'white', borderRadius: '4px', border: '1px solid var(--border-sub)' }}>
+                        <div>
+                          <strong>{b.batch_no}</strong>: {b.quantity} {b.unit || showStockModal.unit}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>Exp: {b.expiry_period}</span>
+                          <span className={`badge ${b.expiry_status === 'EXPIRED' ? 'badge-danger' : b.expiry_status === 'EXPIRING_SOON' ? 'badge-warning' : 'badge-success'}`} style={{ fontSize: '9px', padding: '1px 5px' }}>
+                            {b.expiry_status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Calculated preview */}
               {stockForm.quantity && (
@@ -1108,7 +1395,122 @@ export default function StoreInventoryWorkspace() {
         </div>
       )}
 
-      {/* MODAL 3: ADD SUPPLIER (Book1.xlsx Specification) */}
+      {/* MODAL 4: BATCH BREAKDOWN & EXPIRY INSPECTION */}
+      {showBatchModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '600px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--t-900)' }}>
+                  Stock Batches & Expiry Breakdown
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--t-500)', marginTop: '2px' }}>
+                  {showBatchModal.name} &bull; Total Available: <strong style={{ color: 'var(--brand)' }}>{parseFloat(showBatchModal.current_stock)} {showBatchModal.unit}</strong>
+                </p>
+              </div>
+              <button onClick={() => setShowBatchModal(null)} className="btn btn-secondary btn-sm" style={{ padding: '4px 8px' }}>
+                ✕
+              </button>
+            </div>
+
+            <div style={{ maxHeight: '360px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {showBatchModal.active_batches && showBatchModal.active_batches.length > 0 ? (
+                showBatchModal.active_batches.map((b, idx) => {
+                  const isExp = b.expiry_status === 'EXPIRED';
+                  const isSoon = b.expiry_status === 'EXPIRING_SOON';
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 'var(--r-sm)',
+                        border: '1px solid',
+                        borderColor: isExp ? '#fca5a5' : isSoon ? '#fde68a' : 'var(--border-sub)',
+                        background: isExp ? '#fef2f2' : isSoon ? '#fffdf0' : '#f8fafc',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: '700', fontSize: '12.5px', color: 'var(--t-900)' }}>
+                            {b.batch_no}
+                          </span>
+                          <span
+                            className="badge"
+                            style={{
+                              background: isExp ? '#fee2e2' : isSoon ? '#fef3c7' : '#f0fdf4',
+                              color: isExp ? '#b91c1c' : isSoon ? '#92400e' : '#15803d',
+                              border: `1px solid ${isExp ? '#fca5a5' : isSoon ? '#fde68a' : '#bbf7d0'}`,
+                              fontSize: '9.5px',
+                              padding: '2px 7px',
+                              fontWeight: '700',
+                            }}
+                          >
+                            {isExp ? '⛔ EXPIRED' : isSoon ? `⚠️ DUE IN ${b.days_remaining}D` : '✓ VALID'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--t-700)', marginTop: '4px' }}>
+                          Batch Qty: <strong>{b.quantity} {b.unit || showBatchModal.unit}</strong> &bull; Expiry: <strong>{b.expiry_period}</strong>
+                        </div>
+                        {b.received_at && (
+                          <div style={{ fontSize: '10.5px', color: 'var(--t-400)', marginTop: '2px' }}>
+                            Received: {new Date(b.received_at).toLocaleDateString()} {b.notes ? `• ${b.notes}` : ''}
+                          </div>
+                        )}
+                      </div>
+
+                      {isExp && (
+                        <button
+                          onClick={() => {
+                            const targetBatch = b;
+                            const prod = showBatchModal;
+                            setShowBatchModal(null);
+                            setShowStockModal(prod);
+                            setStockForm({
+                              type: 'SUBTRACT',
+                              quantity: targetBatch.quantity.toString(),
+                              reason: 'Damaged / Spoilage Wastage',
+                              notes: `Write off expired batch ${targetBatch.batch_no} (${targetBatch.expiry_period})`,
+                              batch_no: targetBatch.batch_no,
+                              expiry_period: targetBatch.expiry_period,
+                            });
+                          }}
+                          className="btn btn-sm"
+                          style={{
+                            background: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            padding: '6px 10px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title="Write off this expired batch immediately"
+                        >
+                          Clear Expired Stock
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--t-500)', fontSize: '12.5px' }}>
+                  No batch breakdown recorded. Default product expiry is {showBatchModal.expiry_period || 'not set'}.
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <button onClick={() => setShowBatchModal(null)} className="btn btn-secondary btn-sm">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showSupplierModal && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '580px' }}>

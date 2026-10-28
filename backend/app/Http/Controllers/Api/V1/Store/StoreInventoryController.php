@@ -91,13 +91,44 @@ class StoreInventoryController extends Controller
             });
         }
 
-        $products = $query->get();
-
         // Calculate summary metrics across the hotel inventory
         $totalProducts = $hotel->products()->count();
         $lowStockCount = $hotel->products()->whereColumn('current_stock', '<=', 'minimum_stock_qty')->count();
         $totalStockValue = $hotel->products()->select(DB::raw('SUM(current_stock * rate) as val'))->value('val') ?? 0;
         $activeSuppliersCount = $hotel->suppliers()->where('status', 'Active')->count();
+
+        // Compute expiry status for all products for metrics
+        $allProducts = $hotel->products()->get();
+        $expiredCount = 0;
+        $expiringSoonCount = 0;
+
+        foreach ($allProducts as $p) {
+            $details = $p->computeExpiryDetails();
+            if ($details['status'] === 'EXPIRED') {
+                $expiredCount++;
+            } elseif ($details['status'] === 'EXPIRING_SOON') {
+                $expiringSoonCount++;
+            }
+        }
+
+        $products = $query->get()->map(function ($product) {
+            $details = $product->computeExpiryDetails();
+            $product->expiry_status = $details['status'];
+            $product->days_until_expiry = $details['days_remaining'];
+            $product->has_expired_batch = $details['has_expired_batch'];
+            $product->has_expiring_soon_batch = $details['has_expiring_soon_batch'];
+            $product->oldest_expiring_batch = $details['oldest_expiring_batch'];
+            $product->active_batches = $details['batches'];
+            return $product;
+        });
+
+        // Filter by expiry status if requested
+        if ($request->filled('expiry_status') && $request->query('expiry_status') !== 'ALL') {
+            $target = $request->query('expiry_status');
+            $products = $products->filter(function ($p) use ($target) {
+                return $p->expiry_status === $target;
+            })->values();
+        }
 
         return response()->json([
             'success' => true,
@@ -109,6 +140,8 @@ class StoreInventoryController extends Controller
             'metrics' => [
                 'total_products' => $totalProducts,
                 'low_stock_count' => $lowStockCount,
+                'expired_count' => $expiredCount,
+                'expiring_soon_count' => $expiringSoonCount,
                 'total_stock_value' => round((float) $totalStockValue, 2),
                 'active_suppliers' => $activeSuppliersCount,
                 'categories' => Product::CATEGORIES,
@@ -149,6 +182,18 @@ class StoreInventoryController extends Controller
             ],
         ]);
 
+        $initialBatches = [];
+        if ((float) $validated['opening_stock'] > 0) {
+            $initialBatches[] = [
+                'batch_no' => 'BAT-' . strtoupper(substr(uniqid(), -5)),
+                'quantity' => (float) $validated['opening_stock'],
+                'unit' => $validated['unit'],
+                'expiry_period' => $validated['expiry_period'] ?? null,
+                'received_at' => now()->toIso8601String(),
+                'notes' => 'Opening Stock',
+            ];
+        }
+
         $product = $hotel->products()->create([
             'supplier_id' => $validated['supplier_id'] ?? null,
             'category' => $validated['category'],
@@ -162,6 +207,7 @@ class StoreInventoryController extends Controller
             'opening_stock' => $validated['opening_stock'],
             'current_stock' => $validated['opening_stock'],
             'minimum_stock_qty' => $validated['minimum_stock_qty'] ?? 0.00,
+            'batches' => $initialBatches,
             'status' => $validated['status'] ?? 'Active',
         ]);
 
@@ -233,6 +279,8 @@ class StoreInventoryController extends Controller
             'quantity' => 'required|numeric|min:0.01',
             'reason' => 'required|string|max:150', // e.g. 'Vendor Delivery GRN', 'Kitchen Requisition', 'Spoilage/Waste', 'Physical Audit'
             'notes' => 'nullable|string|max:255',
+            'batch_no' => 'nullable|string|max:50',
+            'expiry_period' => 'nullable|string|max:20',
         ]);
 
         return DB::transaction(function () use ($hotel, $id, $validated) {
@@ -240,9 +288,34 @@ class StoreInventoryController extends Controller
 
             $oldStock = (float) $product->current_stock;
             $qty = (float) $validated['quantity'];
+            $batches = is_array($product->batches) ? $product->batches : [];
 
             if ($validated['type'] === 'ADD') {
                 $newStock = $oldStock + $qty;
+
+                // If batches was empty but we had stock, seed existing stock batch
+                if (empty($batches) && $oldStock > 0) {
+                    $batches[] = [
+                        'batch_no' => 'BAT-PREV-01',
+                        'quantity' => $oldStock,
+                        'unit' => $product->unit,
+                        'expiry_period' => $product->expiry_period,
+                        'received_at' => $product->created_at?->toIso8601String(),
+                        'notes' => 'Existing Stock',
+                    ];
+                }
+
+                $batchNo = !empty($validated['batch_no']) ? $validated['batch_no'] : ('BAT-' . strtoupper(substr(uniqid(), -6)));
+                $batchExpiry = !empty($validated['expiry_period']) ? $validated['expiry_period'] : $product->expiry_period;
+
+                $batches[] = [
+                    'batch_no' => $batchNo,
+                    'quantity' => $qty,
+                    'unit' => $product->unit,
+                    'expiry_period' => $batchExpiry,
+                    'received_at' => now()->toIso8601String(),
+                    'notes' => $validated['notes'] ?? $validated['reason'],
+                ];
             } elseif ($validated['type'] === 'SUBTRACT') {
                 if ($oldStock < $qty) {
                     return response()->json([
@@ -251,12 +324,69 @@ class StoreInventoryController extends Controller
                     ], 422);
                 }
                 $newStock = $oldStock - $qty;
+
+                // If specific batch requested
+                if (!empty($validated['batch_no'])) {
+                    foreach ($batches as &$b) {
+                        if (($b['batch_no'] ?? '') === $validated['batch_no']) {
+                            $bQty = (float) ($b['quantity'] ?? 0);
+                            $b['quantity'] = max(0, round($bQty - $qty, 2));
+                            break;
+                        }
+                    }
+                    unset($b);
+                } else {
+                    // FEFO deduction: First Expired, First Out
+                    usort($batches, function ($a, $b) {
+                        $tA = Product::parseExpiryDate($a['expiry_period'] ?? null)?->timestamp ?? 9999999999;
+                        $tB = Product::parseExpiryDate($b['expiry_period'] ?? null)?->timestamp ?? 9999999999;
+                        return $tA <=> $tB;
+                    });
+
+                    $rem = $qty;
+                    foreach ($batches as &$b) {
+                        if ($rem <= 0) break;
+                        $bQty = (float) ($b['quantity'] ?? 0);
+                        if ($bQty <= 0) continue;
+                        if ($bQty <= $rem) {
+                            $rem -= $bQty;
+                            $b['quantity'] = 0;
+                        } else {
+                            $b['quantity'] = round($bQty - $rem, 2);
+                            $rem = 0;
+                        }
+                    }
+                    unset($b);
+                }
+
+                // Filter out 0 qty batches
+                $batches = array_values(array_filter($batches, fn($b) => (float)($b['quantity'] ?? 0) > 0));
             } else {
                 $newStock = $qty;
+                $batchNo = !empty($validated['batch_no']) ? $validated['batch_no'] : ('BAT-AUDIT-' . strtoupper(substr(uniqid(), -4)));
+                $batches = [
+                    [
+                        'batch_no' => $batchNo,
+                        'quantity' => $newStock,
+                        'unit' => $product->unit,
+                        'expiry_period' => !empty($validated['expiry_period']) ? $validated['expiry_period'] : $product->expiry_period,
+                        'received_at' => now()->toIso8601String(),
+                        'notes' => 'Physical Stock Audit / Reset',
+                    ]
+                ];
             }
 
             $product->current_stock = $newStock;
+            $product->batches = $batches;
             $product->save();
+
+            $expiryDetails = $product->computeExpiryDetails();
+            $product->expiry_status = $expiryDetails['status'];
+            $product->days_until_expiry = $expiryDetails['days_remaining'];
+            $product->has_expired_batch = $expiryDetails['has_expired_batch'];
+            $product->has_expiring_soon_batch = $expiryDetails['has_expiring_soon_batch'];
+            $product->oldest_expiring_batch = $expiryDetails['oldest_expiring_batch'];
+            $product->active_batches = $expiryDetails['batches'];
 
             return response()->json([
                 'success' => true,
