@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Admin\SuperAdminModuleController;
 use App\Http\Controllers\Api\V1\Admin\SuperAdminOrganizationController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\FrontOffice\FrontOfficeController;
+use App\Http\Controllers\Api\V1\Guest\RoomDiningGuestController;
 use App\Http\Controllers\Api\V1\Hotel\HotelModuleController;
 use App\Http\Controllers\Api\V1\Hotel\HotelStaffController;
 use App\Http\Controllers\Api\V1\Kitchen\KitchenKdsController;
@@ -20,6 +21,13 @@ Route::prefix('v1')->group(function () {
 
     // 1. Authentication
     Route::post('/auth/login', [AuthController::class, 'login']);
+
+    // Public In-Room Dining & Digital QR Menu for In-House Guests
+    Route::prefix('public/room-dining')->group(function () {
+        Route::get('/orders/{orderNumber}', [RoomDiningGuestController::class, 'trackOrderStatus']);
+        Route::get('/{hotelCode}/{roomNumber}', [RoomDiningGuestController::class, 'getRoomMenu']);
+        Route::post('/{hotelCode}/{roomNumber}/order', [RoomDiningGuestController::class, 'placeRoomOrder']);
+    });
 
     // 2. Protected Authenticated Routes
     Route::middleware('auth:sanctum')->group(function () {

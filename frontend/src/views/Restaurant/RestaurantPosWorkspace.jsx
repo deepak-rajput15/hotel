@@ -438,6 +438,26 @@ export default function RestaurantPosWorkspace() {
             <FileText size={15} />
             Menu Catalog ({menuItems.length})
           </button>
+
+          <button
+            onClick={() => setActiveTab('room_dining_qr')}
+            style={{
+              padding: '7px 14px',
+              borderRadius: 'var(--r-sm)',
+              fontSize: '13px',
+              fontWeight: activeTab === 'room_dining_qr' ? '700' : '500',
+              background: activeTab === 'room_dining_qr' ? 'var(--white)' : 'transparent',
+              color: activeTab === 'room_dining_qr' ? 'var(--brand)' : 'var(--t-700)',
+              border: activeTab === 'room_dining_qr' ? '1px solid var(--border)' : '1px solid transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Bed size={15} />
+            In-Room QR Dining
+          </button>
         </div>
       </div>
 
@@ -1328,6 +1348,200 @@ export default function RestaurantPosWorkspace() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* 5. TAB 5: In-Room Dining & QR Tent Cards */}
+      {activeTab === 'room_dining_qr' && (
+        <div>
+          {/* Header Card */}
+          <div
+            className="card"
+            style={{
+              marginBottom: '20px',
+              background: 'linear-gradient(135deg, var(--brand-50) 0%, var(--white) 100%)',
+              border: '1px solid var(--brand-200)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span className="badge badge-brand" style={{ fontWeight: '700' }}>
+                  24/7 Digital Room Service
+                </span>
+                <span className="badge badge-success">Mobile Self-Ordering Active</span>
+              </div>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--t-900)' }}>
+                In-Room Dining Digital QR Menu & Mobile Ordering
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--t-600)', marginTop: '2px', maxWidth: '680px' }}>
+                Hotel guests scan the bedside QR code on their personal smartphone to browse the restaurant menu, place orders directly to the Kitchen KDS, and automatically post charges to their room folio.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => window.print()}
+                className="btn btn-secondary btn-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', padding: '8px 14px' }}
+              >
+                <Printer size={15} />
+                <span>Print All Room Cards</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Room Standees Grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '16px',
+            }}
+          >
+            {(inHouseRooms.length > 0
+              ? inHouseRooms
+              : [
+                  { room_number: '101', room_type: 'Deluxe Sea View', guest_name: 'Rahul Verma (In-House)' },
+                  { room_number: '102', room_type: 'Executive Suite', guest_name: 'Priya Sharma (In-House)' },
+                  { room_number: '201', room_type: 'Presidential Suite', guest_name: 'Ananya Roy (In-House)' },
+                  { room_number: '202', room_type: 'Standard King', guest_name: null },
+                ]
+            ).map((r, idx) => {
+              const hotelCode = currentHotel?.hotel_code || 'HTL-1002';
+              const orderUrl = `https://sas.u2tech.in/room-order/${hotelCode}/${r.room_number}`;
+              const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
+                orderUrl
+              )}`;
+
+              return (
+                <div
+                  key={idx}
+                  className="card"
+                  style={{
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    border: '1px solid var(--border)',
+                    boxShadow: 'var(--shadow-sm)',
+                    position: 'relative',
+                  }}
+                >
+                  {/* Top Badge */}
+                  <div
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        background: 'var(--brand-50)',
+                        color: 'var(--brand)',
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      Room {r.room_number}
+                    </span>
+                    <span
+                      className={`badge ${r.guest_name ? 'badge-success' : 'badge-inactive'}`}
+                      style={{ fontSize: '10px' }}
+                    >
+                      {r.guest_name ? 'Occupied' : 'Vacant'}
+                    </span>
+                  </div>
+
+                  {/* QR Code Container */}
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '2px solid var(--border-sub)',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      margin: '6px 0 12px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    <img
+                      src={qrImageUrl}
+                      alt={`QR Code Room ${r.room_number}`}
+                      style={{ width: '130px', height: '130px', display: 'block' }}
+                    />
+                  </div>
+
+                  <strong style={{ fontSize: '15px', color: 'var(--t-900)' }}>
+                    Scan for In-Room Dining
+                  </strong>
+                  <p style={{ fontSize: '11.5px', color: 'var(--t-500)', margin: '2px 0 12px' }}>
+                    {r.room_type || 'Hotel Room'} &bull; {currentHotel?.name || 'Hotel'}
+                  </p>
+
+                  {r.guest_name && (
+                    <div
+                      style={{
+                        width: '100%',
+                        background: 'var(--surface-sub)',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        color: 'var(--t-700)',
+                        marginBottom: '14px',
+                      }}
+                    >
+                      Guest: <strong>{r.guest_name}</strong>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <a
+                      href={`/room-order/${hotelCode}/${r.room_number}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        textDecoration: 'none',
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                        padding: '6px',
+                      }}
+                    >
+                      <span>📱 Test View</span>
+                    </a>
+                    <button
+                      onClick={() => window.open(orderUrl, '_blank')}
+                      className="btn btn-primary btn-sm"
+                      style={{
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                        padding: '6px',
+                      }}
+                    >
+                      <span>Open Link ➔</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

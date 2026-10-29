@@ -7,11 +7,32 @@ import TopReminderBar from './components/Notifications/TopReminderBar';
 import BroadcastModal from './components/Notifications/BroadcastModal';
 import SuperAdminDashboard from './views/SuperAdmin/SuperAdminDashboard';
 import HotelOwnerDashboard from './views/HotelOwner/HotelOwnerDashboard';
+import RoomDiningGuestView from './views/Guest/RoomDiningGuestView';
 import Login from './views/Login';
 
 function AppContent() {
   const { user, loading, currentHotel } = useAuth();
   const [currentTab, setCurrentTab] = useState('overview');
+
+  // In-Room Dining Mobile Guest Interface (Public QR code access)
+  const pathname = window.location.pathname;
+  const searchParams = new URLSearchParams(window.location.search);
+  const roomOrderParam = searchParams.get('room_order');
+
+  if (pathname.startsWith('/room-order/') || roomOrderParam) {
+    let hotelCode = 'HTL-1002';
+    let roomNumber = '101';
+    if (pathname.startsWith('/room-order/')) {
+      const parts = pathname.split('/').filter(Boolean);
+      hotelCode = parts[1] || 'HTL-1002';
+      roomNumber = parts[2] || '101';
+    } else if (roomOrderParam) {
+      const [h, r] = roomOrderParam.split(':');
+      hotelCode = h || 'HTL-1002';
+      roomNumber = r || '101';
+    }
+    return <RoomDiningGuestView hotelCode={hotelCode} roomNumber={roomNumber} />;
+  }
 
   const isSuperAdmin = !!user?.is_platform_admin;
   const isStaff = !!user?.assigned_role && !user?.is_org_owner;

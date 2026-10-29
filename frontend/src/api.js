@@ -302,4 +302,17 @@ export const notificationsApi = {
     }),
 };
 
+export const guestApi = {
+  getRoomMenu: (hotelCode, roomNumber) =>
+    apiRequest(`/public/room-dining/${hotelCode}/${roomNumber}`),
+  placeRoomOrder: (hotelCode, roomNumber, data) =>
+    apiRequest(`/public/room-dining/${hotelCode}/${roomNumber}/order`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  trackOrderStatus: (orderNumber) =>
+    apiRequest(`/public/room-dining/orders/${orderNumber}`),
+};
+
+
 
