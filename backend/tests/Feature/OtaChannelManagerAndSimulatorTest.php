@@ -200,3 +200,4 @@ class OtaChannelManagerAndSimulatorTest extends TestCase
         ]);
     }
 }
+

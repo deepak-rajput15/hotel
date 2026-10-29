@@ -17,6 +17,53 @@ import {
   Filter,
 } from 'lucide-react';
 
+const formatKotElapsed = (printedAt, fallbackMins) => {
+  if (printedAt) {
+    const diffMs = Date.now() - new Date(printedAt).getTime();
+    if (!isNaN(diffMs)) {
+      const mins = Math.max(0, Math.floor(diffMs / 60000));
+      if (mins < 1) return 'Just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      const remMins = mins % 60;
+      return remMins > 0 ? `${hrs}h ${remMins}m ago` : `${hrs}h ago`;
+    }
+  }
+  const cleanMins = Math.max(0, Math.round(Math.abs(parseFloat(fallbackMins) || 0)));
+  return cleanMins === 0 ? 'Just now' : `${cleanMins}m ago`;
+};
+
+const VegNonVegBadge = ({ type }) => {
+  const isVeg = type === 'VEG';
+  return (
+    <span
+      title={isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '15px',
+        height: '15px',
+        border: `1.5px solid ${isVeg ? '#16a34a' : '#dc2626'}`,
+        borderRadius: '3px',
+        padding: '1px',
+        flexShrink: 0,
+        backgroundColor: '#ffffff',
+      }}
+    >
+      <span
+        style={{
+          width: '7px',
+          height: '7px',
+          borderRadius: '50%',
+          backgroundColor: isVeg ? '#16a34a' : '#dc2626',
+          display: 'inline-block',
+        }}
+      />
+    </span>
+  );
+};
+
 export default function KitchenDisplayWorkspace() {
   const { currentHotel, user } = useAuth();
 
@@ -234,149 +281,350 @@ export default function KitchenDisplayWorkspace() {
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '18px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 420px))',
+            gap: '20px',
+            alignItems: 'start',
+          }}
+        >
           {kots.map((kot) => {
-            const isDelayed = kot.is_delayed;
+            const isDelayed = kot.is_delayed || (kot.elapsed_minutes >= 15);
             const isReady = kot.overall_status === 'READY';
             const isCooking = kot.overall_status === 'PREPARING';
+
+            const statusTheme = isDelayed
+              ? { border: '#ef4444', bannerBg: '#fef2f2', badgeBg: '#fee2e2', text: '#b91c1c', label: 'DELAYED (>15M)' }
+              : isReady
+              ? { border: 'var(--success)', bannerBg: '#f0fdf4', badgeBg: '#dcfce7', text: 'var(--success)', label: 'READY FOR DISPATCH' }
+              : isCooking
+              ? { border: 'var(--brand)', bannerBg: '#eff6ff', badgeBg: '#dbeafe', text: 'var(--brand)', label: 'COOKING ON STOVE' }
+              : { border: '#f59e0b', bannerBg: '#fffbeb', badgeBg: '#fef3c7', text: '#b45309', label: 'ORDER QUEUED' };
+
+            const elapsedText = formatKotElapsed(kot.kot_printed_at, kot.elapsed_minutes);
 
             return (
               <div
                 key={kot.group_key}
                 className="card"
                 style={{
-                  padding: '16px',
+                  padding: '0',
+                  overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  borderTop: `4px solid ${
-                    isDelayed ? '#ef4444' : isReady ? 'var(--success)' : isCooking ? 'var(--brand)' : '#f59e0b'
-                  }`,
-                  boxShadow: isDelayed ? '0 4px 14px rgba(239, 68, 68, 0.15)' : 'var(--shadow-xs)',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                  borderTop: `5px solid ${statusTheme.border}`,
+                  boxShadow: isDelayed ? '0 6px 20px rgba(239, 68, 68, 0.16)' : '0 2px 8px rgba(0, 0, 0, 0.04)',
+                  background: 'var(--white)',
                 }}
               >
                 <div>
-                  {/* Card Header: Channel & KOT Details */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className="badge badge-brand" style={{ fontSize: '11px', fontWeight: '800' }}>
+                  {/* Card Header Bar: Ticket Number, Table/Room, Live Timer */}
+                  <div
+                    style={{
+                      background: statusTheme.bannerBg,
+                      padding: '12px 16px',
+                      borderBottom: '1px solid var(--border-sub)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span
+                        style={{
+                          background: '#0f172a',
+                          color: '#ffffff',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '800',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
                         {kot.kot_number}
                       </span>
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--t-900)' }}>
-                        {kot.order_type === 'DINE_IN'
-                          ? `🍽️ Table ${kot.table_no || '--'}`
-                          : kot.order_type === 'ROOM_SERVICE'
-                          ? `🛎️ Room ${kot.room_number || '--'}`
-                          : '🛍️ Takeaway'}
+
+                      <span
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: '800',
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          background: kot.order_type === 'DINE_IN' ? '#ecfdf5' : kot.order_type === 'ROOM_SERVICE' ? '#eff6ff' : '#fffbeb',
+                          color: kot.order_type === 'DINE_IN' ? '#065f46' : kot.order_type === 'ROOM_SERVICE' ? '#1e40af' : '#92400e',
+                          border: `1px solid ${kot.order_type === 'DINE_IN' ? '#a7f3d0' : kot.order_type === 'ROOM_SERVICE' ? '#bfdbfe' : '#fde68a'}`,
+                        }}
+                      >
+                        {kot.order_type === 'DINE_IN' ? (
+                          <>
+                            <Utensils size={13} />
+                            Table {kot.table_no || '--'}
+                          </>
+                        ) : kot.order_type === 'ROOM_SERVICE' ? (
+                          <>
+                            <Bed size={13} />
+                            Room {kot.room_number || '--'}
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingBag size={13} />
+                            Takeaway
+                          </>
+                        )}
                       </span>
                     </div>
 
-                    {/* Timer Badge */}
-                    <span
+                    {/* Timer Badge with non-wrapping pill formatting */}
+                    <div
                       style={{
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        background: isDelayed ? '#fee2e2' : 'var(--surface-sub)',
-                        color: isDelayed ? '#b91c1c' : 'var(--t-700)',
-                        display: 'flex',
+                        whiteSpace: 'nowrap',
+                        fontSize: '11.5px',
+                        fontWeight: '800',
+                        padding: '4px 9px',
+                        borderRadius: '6px',
+                        background: statusTheme.badgeBg,
+                        color: statusTheme.text,
+                        border: `1px solid ${statusTheme.border}40`,
+                        display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
+                        gap: '5px',
+                        flexShrink: 0,
                       }}
                     >
-                      <Clock size={12} />
-                      {kot.elapsed_minutes}m ago
+                      {isDelayed ? <AlertTriangle size={13} /> : <Clock size={13} />}
+                      <span>{elapsedText}</span>
+                    </div>
+                  </div>
+
+                  {/* Sub-header Bar: Order Ref, Covers, Guest & Status */}
+                  <div
+                    style={{
+                      padding: '9px 16px',
+                      background: 'var(--surface-sub)',
+                      borderBottom: '1px solid var(--border-sub)',
+                      fontSize: '11.5px',
+                      color: 'var(--t-600)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '6px',
+                    }}
+                  >
+                    <div>
+                      Order: <strong>{kot.order_number}</strong> &bull; Covers: <strong>{kot.covers || 1}</strong>
+                      {kot.customer_name && (
+                        <span> &bull; Guest: <strong>{kot.customer_name}</strong></span>
+                      )}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '10.5px',
+                        fontWeight: '800',
+                        color: statusTheme.text,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px',
+                      }}
+                    >
+                      {statusTheme.label}
                     </span>
                   </div>
 
-                  <div style={{ fontSize: '11.5px', color: 'var(--t-500)', marginBottom: '12px' }}>
-                    Order: <strong>{kot.order_number}</strong> &bull; Covers: <strong>{kot.covers}</strong>
-                    {kot.customer_name && ` &bull; Guest: ${kot.customer_name}`}
-                  </div>
-
                   {/* Itemized Dishes List */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+                  <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {kot.items.map((item) => (
                       <div
                         key={item.id}
                         style={{
-                          background: 'var(--surface-sub)',
-                          padding: '8px 10px',
-                          borderRadius: 'var(--r-sm)',
-                          border: '1px solid var(--border-sub)',
+                          background: item.status === 'READY' ? '#f0fdf4' : 'var(--white)',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: `1px solid ${item.status === 'READY' ? '#bbf7d0' : 'var(--border-sub)'}`,
+                          transition: 'all 0.15s ease',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--brand)', background: 'var(--brand-50)', padding: '1px 5px', borderRadius: '3px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                            {/* Quantity Badge */}
+                            <span
+                              style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '6px',
+                                background: item.status === 'READY' ? '#15803d' : 'var(--brand)',
+                                color: '#ffffff',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                fontWeight: '800',
+                                flexShrink: 0,
+                              }}
+                            >
                               {item.quantity}x
                             </span>
-                            <span style={{ fontSize: '10px' }}>
-                              {item.food_type === 'VEG' ? '🟢' : '🔴'}
-                            </span>
-                            <strong style={{ fontSize: '13px', color: 'var(--t-900)' }}>
+
+                            {/* Veg / Non-Veg Indicator */}
+                            <VegNonVegBadge type={item.food_type} />
+
+                            <strong
+                              style={{
+                                fontSize: '13.5px',
+                                color: 'var(--t-900)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={item.item_name}
+                            >
                               {item.item_name}
                             </strong>
                           </div>
 
-                          {/* Individual Item Status Button */}
-                          {item.status === 'PENDING' ? (
-                            <button
-                              onClick={() => handleUpdateItemStatus(item.id, 'PREPARING')}
-                              disabled={actionLoading}
-                              className="btn btn-outline"
-                              style={{ padding: '2px 6px', fontSize: '11px', color: 'var(--brand)' }}
-                            >
-                              Start
-                            </button>
-                          ) : item.status === 'PREPARING' ? (
-                            <button
-                              onClick={() => handleUpdateItemStatus(item.id, 'READY')}
-                              disabled={actionLoading}
-                              className="btn btn-primary"
-                              style={{ padding: '2px 6px', fontSize: '11px', background: 'var(--success)', borderColor: 'var(--success)' }}
-                            >
-                              Mark Ready
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                              <Check size={12} /> Ready
-                            </span>
-                          )}
+                          {/* Individual Item Status Actions */}
+                          <div style={{ flexShrink: 0 }}>
+                            {item.status === 'PENDING' ? (
+                              <button
+                                onClick={() => handleUpdateItemStatus(item.id, 'PREPARING')}
+                                disabled={actionLoading}
+                                className="btn btn-outline"
+                                style={{
+                                  padding: '4px 10px',
+                                  fontSize: '11px',
+                                  fontWeight: '700',
+                                  color: 'var(--brand)',
+                                  borderColor: 'var(--brand)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                <Flame size={12} />
+                                Start
+                              </button>
+                            ) : item.status === 'PREPARING' ? (
+                              <button
+                                onClick={() => handleUpdateItemStatus(item.id, 'READY')}
+                                disabled={actionLoading}
+                                className="btn btn-primary"
+                                style={{
+                                  padding: '4px 10px',
+                                  fontSize: '11px',
+                                  fontWeight: '700',
+                                  background: 'var(--success)',
+                                  borderColor: 'var(--success)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                <Check size={12} />
+                                Mark Ready
+                              </button>
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: '700',
+                                  color: '#15803d',
+                                  background: '#dcfce7',
+                                  border: '1px solid #bbf7d0',
+                                  padding: '3px 8px',
+                                  borderRadius: '5px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                }}
+                              >
+                                <CheckCircle2 size={12} />
+                                Ready
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Special Cooking Instructions */}
+                        {/* Special Cooking Instructions Callout */}
                         {item.special_notes && (
                           <div
                             style={{
-                              fontSize: '11px',
+                              fontSize: '11.5px',
                               fontWeight: '600',
                               color: '#92400e',
-                              background: '#fef3c7',
-                              padding: '2px 6px',
-                              borderRadius: '3px',
-                              marginTop: '4px',
-                              display: 'inline-block',
+                              background: '#fffbeb',
+                              border: '1px dashed #fde68a',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              marginTop: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
                             }}
                           >
-                            ⚠️ Note: {item.special_notes}
+                            <ChefHat size={13} style={{ flexShrink: 0 }} />
+                            <span><strong>Chef Note:</strong> {item.special_notes}</span>
                           </div>
                         )}
                       </div>
                     ))}
                   </div>
+
+                  {/* KOT Global Order Notes */}
+                  {kot.notes && (
+                    <div
+                      style={{
+                        margin: '0 16px 12px',
+                        fontSize: '11.5px',
+                        fontWeight: '600',
+                        color: '#1e40af',
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      <strong>Table Instruction:</strong> {kot.notes}
+                    </div>
+                  )}
                 </div>
 
-                {/* Batch Actions for Entire KOT */}
-                <div style={{ borderTop: '1px solid var(--border-sub)', paddingTop: '10px', display: 'flex', gap: '8px' }}>
+                {/* Batch Actions for Entire KOT (Tear-off Footer) */}
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    background: 'var(--surface-sub)',
+                    borderTop: '2px dashed var(--border)',
+                    display: 'flex',
+                    gap: '8px',
+                  }}
+                >
                   {kot.overall_status === 'PENDING' && (
                     <button
                       onClick={() => handleBatchUpdateKot(kot.order_id, kot.kot_number, 'PREPARING')}
                       disabled={actionLoading}
                       className="btn btn-outline"
-                      style={{ flex: 1, fontSize: '12px', padding: '6px' }}
+                      style={{
+                        flex: 1,
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        padding: '8px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        borderColor: 'var(--brand)',
+                        color: 'var(--brand)',
+                        background: 'var(--white)',
+                      }}
                     >
+                      <Flame size={14} />
                       Start Cooking All
                     </button>
                   )}
@@ -386,8 +634,21 @@ export default function KitchenDisplayWorkspace() {
                       onClick={() => handleBatchUpdateKot(kot.order_id, kot.kot_number, 'READY')}
                       disabled={actionLoading}
                       className="btn btn-primary"
-                      style={{ flex: 1, fontSize: '12px', padding: '6px', background: 'var(--success)', borderColor: 'var(--success)' }}
+                      style={{
+                        flex: 1,
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        padding: '8px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        background: 'var(--success)',
+                        borderColor: 'var(--success)',
+                        boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)',
+                      }}
                     >
+                      <CheckCircle2 size={14} />
                       All Ready (KOT Done)
                     </button>
                   )}
@@ -397,9 +658,21 @@ export default function KitchenDisplayWorkspace() {
                       onClick={() => handleBatchUpdateKot(kot.order_id, kot.kot_number, 'SERVED')}
                       disabled={actionLoading}
                       className="btn btn-outline"
-                      style={{ flex: 1, fontSize: '12px', padding: '6px' }}
+                      style={{
+                        flex: 1,
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        padding: '8px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        background: 'var(--white)',
+                        color: 'var(--t-900)',
+                      }}
                     >
-                      Dispatch / Picked Up
+                      <ShoppingBag size={14} />
+                      Dispatch / Runner Picked Up
                     </button>
                   )}
                 </div>

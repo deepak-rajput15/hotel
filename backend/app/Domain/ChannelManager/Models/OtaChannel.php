@@ -54,3 +54,4 @@ class OtaChannel extends Model
         return $this->hasMany(OtaSyncLog::class, 'ota_channel_id');
     }
 }
+

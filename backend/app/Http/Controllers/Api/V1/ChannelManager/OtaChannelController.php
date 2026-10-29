@@ -243,3 +243,4 @@ class OtaChannelController extends Controller
         return response()->json($result);
     }
 }
+

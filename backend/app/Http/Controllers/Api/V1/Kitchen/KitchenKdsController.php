@@ -66,7 +66,7 @@ class KitchenKdsController extends Controller
 
             if (!isset($groupedKots[$groupKey])) {
                 $kotTime = $item->kot_printed_at ?? $item->created_at;
-                $elapsedMinutes = $kotTime ? Carbon::now()->diffInMinutes($kotTime) : 0;
+                $elapsedMinutes = $kotTime ? (int) max(0, round(abs(Carbon::now()->diffInMinutes($kotTime)))) : 0;
 
                 $groupedKots[$groupKey] = [
                     'group_key' => $groupKey,
