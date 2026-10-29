@@ -140,6 +140,18 @@ class ProductExpiryAndBatchTrackingTest extends TestCase
         $this->assertCount(1, $product->batches);
         $this->assertEquals('BAT-NEW-30', $product->batches[0]['batch_no']);
         $this->assertEquals(25, (float) $product->batches[0]['quantity']);
+
+        // Update batch expiry directly
+        $batchUpdateRes = $this->actingAs($this->storekeeper)
+            ->withHeaders(['X-Hotel-Context' => $this->hotel->id])
+            ->putJson("/api/v1/store/products/{$product->id}/batches/BAT-NEW-30", [
+                'expiry_period' => '10/2026',
+            ]);
+
+        $batchUpdateRes->assertOk();
+        $product->refresh();
+        $this->assertEquals('10/2026', $product->batches[0]['expiry_period']);
+        $this->assertEquals('10/2026', $product->expiry_period);
     }
 
     public function test_api_products_list_returns_expiry_metrics(): void
