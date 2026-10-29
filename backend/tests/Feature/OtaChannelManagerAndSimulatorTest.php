@@ -199,5 +199,33 @@ class OtaChannelManagerAndSimulatorTest extends TestCase
             'status' => 'SUCCESS',
         ]);
     }
+
+    public function test_can_simulate_booking_for_hotel_b_htl_1002(): void
+    {
+        $hotelB = Hotel::where('hotel_code', 'HTL-1002')->first();
+
+        $response = $this->actingAs($this->owner)
+            ->withHeader('X-Hotel-Context', $hotelB->id)
+            ->postJson('/api/v1/ota/simulate-booking', [
+                'channel_code' => 'MAKEMYTRIP',
+                'guest_name' => 'Aditi Singhania',
+                'guest_phone' => '+919876001122',
+                'guest_email' => 'aditi.singhania@example.com',
+                'room_type' => 'DELUXE',
+                'rate_per_night' => 3000,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        $this->assertDatabaseHas('ota_sync_logs', [
+            'hotel_id' => $hotelB->id,
+            'channel_code' => 'MAKEMYTRIP',
+            'guest_name' => 'Aditi Singhania',
+            'status' => 'SUCCESS',
+        ]);
+    }
 }
 

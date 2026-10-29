@@ -173,38 +173,49 @@ class OtaChannelController extends Controller
      */
     public function simulateBooking(Request $request): JsonResponse
     {
-        $hotel = $this->resolveHotel($request);
-        if (!$hotel) {
-            return response()->json(['success' => false, 'message' => 'Hotel context required'], 400);
+        try {
+            $hotel = $this->resolveHotel($request);
+            if (!$hotel) {
+                return response()->json(['success' => false, 'message' => 'Hotel context required'], 400);
+            }
+
+            $channelCode = strtoupper($request->get('channel_code', 'MAKEMYTRIP'));
+
+            // Sample Indian & Global Travelers pool
+            $mockGuests = [
+                ['name' => 'Amitabh Sengupta', 'phone' => '+919830012345', 'email' => 'amitabh.s@example.com', 'rate' => 3200],
+                ['name' => 'Meera Deshmukh', 'phone' => '+919820098765', 'email' => 'meera.d@example.com', 'rate' => 2800],
+                ['name' => 'David Miller', 'phone' => '+447911123456', 'email' => 'david.m@example.co.uk', 'rate' => 4500],
+                ['name' => 'Harshita Agarwal', 'phone' => '+919414055555', 'email' => 'harshita.a@example.com', 'rate' => 3000],
+                ['name' => 'Rohan Oberoi', 'phone' => '+919811199888', 'email' => 'rohan.o@example.com', 'rate' => 3800],
+            ];
+
+            $randomGuest = $mockGuests[array_rand($mockGuests)];
+
+            $bookingData = [
+                'ota_reservation_id' => $channelCode . '-' . rand(1000000, 9999999),
+                'guest_name' => $request->get('guest_name', $randomGuest['name']),
+                'guest_phone' => $request->get('guest_phone', $randomGuest['phone']),
+                'guest_email' => $request->get('guest_email', $randomGuest['email']),
+                'room_type' => $request->get('room_type', 'DELUXE'),
+                'rate_per_night' => (float) $request->get('rate_per_night', $randomGuest['rate']),
+                'check_in_at' => $request->get('check_in_at', Carbon::today()->addDay()->setHour(14)->toIso8601String()),
+                'check_out_at' => $request->get('check_out_at', Carbon::today()->addDays(3)->setHour(11)->toIso8601String()),
+            ];
+
+            $result = OtaChannelService::processInboundBooking($hotel, $channelCode, $bookingData);
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            \Log::error('OTA Booking Simulation Error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Simulation error: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $channelCode = $request->get('channel_code', 'MAKEMYTRIP');
-
-        // Sample Indian & Global Travelers pool
-        $mockGuests = [
-            ['name' => 'Amitabh Sengupta', 'phone' => '+919830012345', 'email' => 'amitabh.s@example.com', 'rate' => 3200],
-            ['name' => 'Meera Deshmukh', 'phone' => '+919820098765', 'email' => 'meera.d@example.com', 'rate' => 2800],
-            ['name' => 'David Miller', 'phone' => '+447911123456', 'email' => 'david.m@example.co.uk', 'rate' => 4500],
-            ['name' => 'Harshita Agarwal', 'phone' => '+919414055555', 'email' => 'harshita.a@example.com', 'rate' => 3000],
-            ['name' => 'Rohan Oberoi', 'phone' => '+919811199888', 'email' => 'rohan.o@example.com', 'rate' => 3800],
-        ];
-
-        $randomGuest = $mockGuests[array_rand($mockGuests)];
-
-        $bookingData = [
-            'ota_reservation_id' => $channelCode . '-' . rand(1000000, 9999999),
-            'guest_name' => $request->get('guest_name', $randomGuest['name']),
-            'guest_phone' => $request->get('guest_phone', $randomGuest['phone']),
-            'guest_email' => $request->get('guest_email', $randomGuest['email']),
-            'room_type' => $request->get('room_type', 'DELUXE'),
-            'rate_per_night' => (float) $request->get('rate_per_night', $randomGuest['rate']),
-            'check_in_at' => $request->get('check_in_at', Carbon::today()->addDay()->setHour(14)->toIso8601String()),
-            'check_out_at' => $request->get('check_out_at', Carbon::today()->addDays(3)->setHour(11)->toIso8601String()),
-        ];
-
-        $result = OtaChannelService::processInboundBooking($hotel, $channelCode, $bookingData);
-
-        return response()->json($result);
     }
 
     /**

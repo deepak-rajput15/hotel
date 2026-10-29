@@ -123,15 +123,33 @@ class OtaChannelService
 
         // 1. Allocate available room
         $room = $hotel->rooms()
-            ->where('room_type', $roomType)
-            ->whereIn('status', ['AVAILABLE', 'CLEAN'])
+            ->where(function ($q) use ($roomType) {
+                $q->where('room_type', $roomType)
+                  ->orWhereRaw('UPPER(room_type) = ?', [$roomType]);
+            })
+            ->whereIn('status', [Room::STATUS_AVAILABLE, 'CLEAN'])
             ->first();
 
         if (!$room) {
-            // Fallback to any available room
+            // Fallback to any available room in this hotel
             $room = $hotel->rooms()
-                ->whereIn('status', ['AVAILABLE', 'CLEAN'])
+                ->whereIn('status', [Room::STATUS_AVAILABLE, 'CLEAN'])
                 ->first();
+        }
+
+        if (!$room) {
+            // Fallback to matching room type even if currently occupied (for future date booking)
+            $room = $hotel->rooms()
+                ->where(function ($q) use ($roomType) {
+                    $q->where('room_type', $roomType)
+                      ->orWhereRaw('UPPER(room_type) = ?', [$roomType]);
+                })
+                ->first();
+        }
+
+        if (!$room) {
+            // Absolute fallback to ANY room of the hotel
+            $room = $hotel->rooms()->first();
         }
 
         if (!$room) {
@@ -149,7 +167,7 @@ class OtaChannelService
                 'commission_amount' => $commAmount,
                 'net_payable_to_hotel' => $netPayable,
                 'status' => 'WARNING',
-                'message' => "Overbooking Warning: No {$roomType} room vacant. Manual room reassignment needed.",
+                'message' => "Overbooking Warning: No room configured for this hotel. Manual room setup needed.",
                 'payload' => $data,
                 'processed_at' => now(),
             ]);
@@ -157,7 +175,7 @@ class OtaChannelService
             return [
                 'success' => false,
                 'warning' => true,
-                'message' => "Overbooking Warning: Room vacant nahi tha. Synced to audit log for manual allocation.",
+                'message' => "Overbooking Warning: Hotel me koi room configured nahi hai. Synced to audit log.",
                 'log' => $log,
             ];
         }
