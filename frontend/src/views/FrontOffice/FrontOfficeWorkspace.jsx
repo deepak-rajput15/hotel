@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { frontOfficeApi } from '../../api';
+import { frontOfficeApi, whatsappApi } from '../../api';
 import {
   ConciergeBell,
   Bed,
@@ -93,6 +93,7 @@ export default function FrontOfficeWorkspace() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCheckOutModal, setShowCheckOutModal] = useState(null); // booking object
   const [invoiceData, setInvoiceData] = useState(null);
+  const [waInvoiceStatus, setWaInvoiceStatus] = useState('');
 
   // Check-In Form State (with complete Mandatory KYC & Document Fields)
   const [checkInForm, setCheckInForm] = useState({
@@ -1123,6 +1124,30 @@ export default function FrontOfficeWorkspace() {
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                           <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await whatsappApi.resend(b.id, 'BOOKING_CONFIRMATION', currentHotel?.id);
+                                alert(`WhatsApp Confirmation Voucher sent to ${b.guest?.phone || 'guest'}!`);
+                              } catch (e) {
+                                alert(e.message || 'WhatsApp sending failed');
+                              }
+                            }}
+                            className="btn btn-secondary btn-sm"
+                            style={{
+                              background: '#ecfdf5',
+                              color: '#065f46',
+                              border: '1px solid #a7f3d0',
+                              padding: '5px 8px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                            }}
+                            title="Send WhatsApp Confirmation Voucher"
+                          >
+                            💬 WhatsApp
+                          </button>
+
+                          <button
                             onClick={() => {
                               setActionError('');
                               setShowFolioModal(b);
@@ -1781,6 +1806,7 @@ export default function FrontOfficeWorkspace() {
                   <th>Check-Out</th>
                   <th>Total Bill</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -1818,6 +1844,32 @@ export default function FrontOfficeWorkspace() {
                       >
                         {b.status}
                       </span>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await whatsappApi.resend(b.id, 'PRE_CHECKIN_KYC', currentHotel?.id);
+                            alert(`Express Pre-Check-in KYC link sent on WhatsApp to ${b.guest?.phone || 'guest'}!`);
+                          } catch (e) {
+                            alert(e.message || 'WhatsApp sending failed');
+                          }
+                        }}
+                        style={{
+                          background: '#ecfdf5',
+                          color: '#065f46',
+                          border: '1px solid #a7f3d0',
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                        title="Send Express Pre-Check-In KYC Link"
+                      >
+                        💬 Pre-KYC
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -3330,6 +3382,31 @@ export default function FrontOfficeWorkspace() {
               </div>
 
               <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      setWaInvoiceStatus('sending');
+                      const bId = showCheckOutModal?.id || checkedInBookings[0]?.id;
+                      await whatsappApi.resend(bId, 'CHECKOUT_INVOICE', currentHotel?.id);
+                      setWaInvoiceStatus('sent');
+                      setTimeout(() => setWaInvoiceStatus(''), 4000);
+                    } catch (e) {
+                      alert(e.message || 'WhatsApp sending failed');
+                      setWaInvoiceStatus('');
+                    }
+                  }}
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    background: '#25D366',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: '700',
+                  }}
+                >
+                  <span>💬</span>
+                  <span>{waInvoiceStatus === 'sending' ? 'Sending...' : waInvoiceStatus === 'sent' ? '✓ WhatsApp Sent!' : 'Share WhatsApp'}</span>
+                </button>
                 <button onClick={() => window.print()} className="btn btn-primary btn-sm">
                   <Printer size={14} />
                   <span>Print Tax Invoice</span>

@@ -8,6 +8,7 @@ use App\Domain\FrontOffice\Models\FolioItem;
 use App\Domain\FrontOffice\Models\Guest;
 use App\Domain\FrontOffice\Models\Payment;
 use App\Domain\FrontOffice\Models\Room;
+use App\Domain\Notifications\Services\WhatsAppNotificationService;
 use App\Domain\Tenancy\Models\Hotel;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
@@ -861,6 +862,14 @@ class FrontOfficeController extends Controller
             // 9. Calculate final totals, taxes, and balance
             $booking->recalculateTotals();
 
+            // 10. Automated WhatsApp Confirmation Voucher Engine
+            try {
+                WhatsAppNotificationService::sendBookingConfirmation($booking);
+            } catch (\Throwable $e) {
+                // Log and gracefully continue without failing transaction
+                report($e);
+            }
+
             $message = $isFutureReservation
                 ? "Advance Reservation confirmed for Room {$room->room_number} ({$booking->booking_number}) from " . $checkInTime->format('d M Y, h:i A') . " to " . $checkOutTime->format('d M Y, h:i A') . " ({$nights} Nights)."
                 : "Guest {$guest->full_name} checked in to Room {$room->room_number} successfully ({$nights} Nights). Folio #{$booking->booking_number} generated.";
@@ -1116,6 +1125,13 @@ class FrontOfficeController extends Controller
                 'folio_items' => $booking->folioItems,
                 'payments' => $booking->payments,
             ];
+
+            // Automated WhatsApp Tax Invoice Receipt
+            try {
+                WhatsAppNotificationService::sendCheckoutInvoice($booking, $invoiceData);
+            } catch (\Throwable $e) {
+                report($e);
+            }
 
             return response()->json([
                 'success' => true,

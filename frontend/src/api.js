@@ -349,6 +349,27 @@ export const shiftsApi = {
     }),
 };
 
+export const whatsappApi = {
+  getLogs: (params = {}, hotelId = null) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/whatsapp/logs${query ? `?${query}` : ''}`, {
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    });
+  },
+  resend: (bookingId, type = 'BOOKING_CONFIRMATION', hotelId = null) =>
+    apiRequest('/whatsapp/resend', {
+      method: 'POST',
+      body: JSON.stringify({ booking_id: bookingId, type }),
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+  sendDailySummary: (hotelId = null) =>
+    apiRequest('/whatsapp/daily-summary', {
+      method: 'POST',
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+};
+
+
 
 
 

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Hotel\HotelModuleController;
 use App\Http\Controllers\Api\V1\Hotel\HotelStaffController;
 use App\Http\Controllers\Api\V1\Kitchen\KitchenKdsController;
 use App\Http\Controllers\Api\V1\Notifications\NotificationController;
+use App\Http\Controllers\Api\V1\Notifications\WhatsAppController;
 use App\Http\Controllers\Api\V1\Modules\TestModuleController;
 use App\Http\Controllers\Api\V1\Purchase\PurchaseOrdersController;
 use App\Http\Controllers\Api\V1\Reports\ReportsController;
@@ -139,6 +140,13 @@ Route::prefix('v1')->group(function () {
                 Route::post('/{shiftId}/close', [ShiftHandoverController::class, 'closeShift']);
                 Route::get('/', [ShiftHandoverController::class, 'listShifts']);
                 Route::get('/{shiftId}/slip', [ShiftHandoverController::class, 'getShiftSlip']);
+            });
+
+            // WhatsApp Automated Communication Engine routes
+            Route::prefix('whatsapp')->group(function () {
+                Route::get('/logs', [WhatsAppController::class, 'logs']);
+                Route::post('/resend', [WhatsAppController::class, 'resend']);
+                Route::post('/daily-summary', [WhatsAppController::class, 'sendDailySummary']);
             });
         });
 
