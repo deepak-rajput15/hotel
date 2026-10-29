@@ -542,31 +542,77 @@ input:checked + .toggle-slider:before {
   to { transform: scale(1); opacity: 1; }
 }
 
-/* Print Stylesheet for Reports & Night Audit Invoicing */
+/* Print Stylesheet for Reports, Guest Tax Invoices & Restaurant Bills */
 @media print {
+  /* Hide navigation, toolbars, buttons, and form inputs */
   .sidebar,
   .top-navbar,
   .btn,
+  .no-print,
+  button,
   .form-select,
-  .form-input {
+  .form-input,
+  .page-header {
     display: none !important;
   }
 
-  body,
+  /* Reset layout for clean white paper print */
+  html, body,
   .app-container,
   .main-content,
   .page-body,
   .reports-workspace {
     background: white !important;
+    color: #0f172a !important;
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
+    min-height: auto !important;
+  }
+
+  /* When printing an open modal invoice/receipt, hide all background page content */
+  body:has(.modal-overlay) .page-body > *:not(.modal-overlay),
+  body:has(.modal-overlay) .card:not(.modal-content),
+  body:has(.modal-overlay) .data-table:not(.modal-content .data-table) {
+    display: none !important;
+  }
+
+  /* Flatten modal overlay into seamless printable document */
+  .modal-overlay {
+    position: static !important;
+    inset: auto !important;
+    background: white !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    z-index: auto !important;
+  }
+
+  .modal-content {
+    box-shadow: none !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 8px !important;
+    padding: 24px !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+    background: white !important;
   }
 
   .card {
     box-shadow: none !important;
-    border: 1px solid #ddd !important;
+    border: 1px solid #cbd5e1 !important;
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  @page {
+    margin: 10mm 12mm;
+    size: auto;
   }
 }
