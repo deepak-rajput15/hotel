@@ -481,3 +481,4 @@ export default function UpiSettingsModal({ isOpen, onClose, hotelId, onSettingsU
     </div>
   );
 }
+

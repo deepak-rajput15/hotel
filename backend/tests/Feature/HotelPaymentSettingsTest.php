@@ -89,3 +89,4 @@ class HotelPaymentSettingsTest extends TestCase
             ->assertJsonValidationErrors(['upi_id']);
     }
 }
+

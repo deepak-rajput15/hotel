@@ -118,3 +118,4 @@ class HotelPaymentSettingController extends Controller
         ]);
     }
 }
+
