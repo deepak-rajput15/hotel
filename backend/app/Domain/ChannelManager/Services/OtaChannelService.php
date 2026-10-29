@@ -112,7 +112,7 @@ class OtaChannelService
         $roomType = strtoupper($data['room_type'] ?? 'DELUXE');
         $checkInAt = isset($data['check_in_at']) ? Carbon::parse($data['check_in_at']) : Carbon::today()->addDay()->setHour(14);
         $checkOutAt = isset($data['check_out_at']) ? Carbon::parse($data['check_out_at']) : Carbon::today()->addDays(3)->setHour(11);
-        $nights = max(1, $checkInAt->diffInDays($checkOutAt));
+        $nights = max(1, (int) round(abs($checkInAt->copy()->startOfDay()->diffInDays($checkOutAt->copy()->startOfDay()))));
         $ratePerNight = (float) ($data['rate_per_night'] ?? 2800);
         $grossAmount = (float) ($data['gross_amount'] ?? ($ratePerNight * $nights));
 
