@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, Shield, Building } from 'lucide-react';
+import NotificationBell from './Notifications/NotificationBell';
 
 export default function Navbar({ title, subtitle }) {
   const { user, currentHotel, logout, login } = useAuth();
@@ -72,6 +73,9 @@ export default function Navbar({ title, subtitle }) {
             <strong style={{ color: 'var(--t-900)' }}>{currentHotel.name}</strong>
           </div>
         )}
+
+        {/* Internal Notification & Reminder Bell */}
+        <NotificationBell />
 
         {/* Logout Button */}
         <button

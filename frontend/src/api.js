@@ -273,3 +273,33 @@ export const purchaseApi = {
   getGrns: () => apiRequest('/purchase/grn'),
 };
 
+export const notificationsApi = {
+  getNotifications: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/notifications${qs ? '?' + qs : ''}`);
+  },
+  createNotification: (data) =>
+    apiRequest('/notifications', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  markAsRead: (id, dismissed = false) =>
+    apiRequest(`/notifications/${id}/read`, {
+      method: 'POST',
+      body: JSON.stringify({ dismissed }),
+    }),
+  markAllAsRead: () =>
+    apiRequest('/notifications/mark-all-read', {
+      method: 'POST',
+    }),
+  toggleBanner: (id) =>
+    apiRequest(`/notifications/${id}/toggle-banner`, {
+      method: 'PUT',
+    }),
+  deleteNotification: (id) =>
+    apiRequest(`/notifications/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+

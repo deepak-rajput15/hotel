@@ -247,6 +247,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             FrontOfficeSeeder::class,
             MasterDataSeeder::class,
+            NotificationSeeder::class,
         ]);
     }
 }

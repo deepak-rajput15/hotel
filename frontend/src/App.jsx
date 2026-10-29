@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
+import TopReminderBar from './components/Notifications/TopReminderBar';
+import BroadcastModal from './components/Notifications/BroadcastModal';
 import SuperAdminDashboard from './views/SuperAdmin/SuperAdminDashboard';
 import HotelOwnerDashboard from './views/HotelOwner/HotelOwnerDashboard';
 import Login from './views/Login';
@@ -134,6 +137,7 @@ function AppContent() {
       <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
 
       <div className="main-content">
+        <TopReminderBar />
         <Navbar title={getPageTitle()} subtitle={getPageSubtitle()} />
 
         {isSuperAdmin ? (
@@ -141,6 +145,8 @@ function AppContent() {
         ) : (
           <HotelOwnerDashboard activeTab={currentTab} />
         )}
+
+        <BroadcastModal />
       </div>
     </div>
   );
@@ -149,7 +155,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
     </AuthProvider>
   );
 }

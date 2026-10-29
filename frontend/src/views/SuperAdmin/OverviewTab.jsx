@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNotifications } from '../../context/NotificationContext';
 import {
   Building2,
   Hotel,
@@ -7,6 +8,7 @@ import {
   TrendingUp,
   ArrowRight,
   CheckCircle2,
+  Megaphone,
 } from 'lucide-react';
 
 export default function OverviewTab({
@@ -15,16 +17,46 @@ export default function OverviewTab({
   modules,
   onNavigateTab,
 }) {
+  const { setIsBroadcastOpen } = useNotifications();
+
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--t-900)' }}>
-          Platform Command Center
-        </h2>
-        <p style={{ fontSize: '13px', color: 'var(--t-500)', marginTop: '2px' }}>
-          Real-time summary of SaaS tenant accounts, properties, and system infrastructure.
-        </p>
+      <div
+        style={{
+          marginBottom: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div>
+          <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--t-900)' }}>
+            Platform Command Center
+          </h2>
+          <p style={{ fontSize: '13px', color: 'var(--t-500)', marginTop: '2px' }}>
+            Real-time summary of SaaS tenant accounts, properties, and system infrastructure.
+          </p>
+        </div>
+
+        <button
+          onClick={() => setIsBroadcastOpen(true)}
+          className="btn btn-primary btn-sm"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '7px 14px',
+            fontSize: '12.5px',
+            fontWeight: '700',
+          }}
+          title="Broadcast system announcement to all hotel owners"
+        >
+          <Megaphone size={14} />
+          <span>Broadcast Owner Announcement</span>
+        </button>
       </div>
 
       {/* KPI Cards */}

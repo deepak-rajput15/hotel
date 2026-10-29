@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNotifications } from '../../context/NotificationContext';
 import {
   Hotel,
   TrendingUp,
@@ -11,6 +12,7 @@ import {
   Building2,
   MapPin,
   ExternalLink,
+  Megaphone,
 } from 'lucide-react';
 
 export default function ConsolidatedPortfolioView({
@@ -18,6 +20,7 @@ export default function ConsolidatedPortfolioView({
   hotels,
   onSelectSpecificHotel,
 }) {
+  const { setIsBroadcastOpen } = useNotifications();
   // Sample consolidated metrics aggregated across Hotel A + B + C
   const totalHotels = hotels.length;
   const portfolioRooms = 145;
@@ -90,12 +93,31 @@ export default function ConsolidatedPortfolioView({
           </p>
         </div>
 
-        <div style={{ textAlign: 'right' }}>
-          <span style={{ fontSize: '11px', color: 'var(--t-500)', textTransform: 'uppercase', fontWeight: '700' }}>
-            Properties Under Management
-          </span>
-          <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--brand)', marginTop: '1px' }}>
-            {totalHotels} Hotel Units
+        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+          <button
+            onClick={() => setIsBroadcastOpen(true)}
+            className="btn btn-primary btn-sm"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              fontSize: '12px',
+              fontWeight: '700',
+            }}
+            title="Broadcast reminder to all hotel properties or departments"
+          >
+            <Megaphone size={13} />
+            <span>Broadcast Group Reminder</span>
+          </button>
+
+          <div>
+            <span style={{ fontSize: '11px', color: 'var(--t-500)', textTransform: 'uppercase', fontWeight: '700' }}>
+              Properties Under Management
+            </span>
+            <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--brand)', marginTop: '1px' }}>
+              {totalHotels} Hotel Units
+            </div>
           </div>
         </div>
       </div>

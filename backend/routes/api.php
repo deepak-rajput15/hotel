@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\FrontOffice\FrontOfficeController;
 use App\Http\Controllers\Api\V1\Hotel\HotelModuleController;
 use App\Http\Controllers\Api\V1\Hotel\HotelStaffController;
 use App\Http\Controllers\Api\V1\Kitchen\KitchenKdsController;
+use App\Http\Controllers\Api\V1\Notifications\NotificationController;
 use App\Http\Controllers\Api\V1\Modules\TestModuleController;
 use App\Http\Controllers\Api\V1\Purchase\PurchaseOrdersController;
 use App\Http\Controllers\Api\V1\Reports\ReportsController;
@@ -27,6 +28,16 @@ Route::prefix('v1')->group(function () {
 
         // Hotel & Module Navigation
         Route::get('/hotels/{hotelId?}/modules', [HotelModuleController::class, 'activeModules'])->middleware('tenant');
+
+        // Internal Notifications & Reminder Broadcasts
+        Route::prefix('notifications')->group(function () {
+            Route::get('/', [NotificationController::class, 'index']);
+            Route::post('/', [NotificationController::class, 'store']);
+            Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+            Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
+            Route::put('/{id}/toggle-banner', [NotificationController::class, 'toggleBanner']);
+            Route::delete('/{id}', [NotificationController::class, 'destroy']);
+        });
 
         // Staff & Module Access Management (Tier 2 Owner generates Tier 3 Staff logins)
         Route::get('/hotels/{hotelId}/staff', [HotelStaffController::class, 'index']);

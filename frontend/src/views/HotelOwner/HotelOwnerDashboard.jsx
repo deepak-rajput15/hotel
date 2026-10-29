@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { hotelApi } from '../../api';
 import ConsolidatedPortfolioView from './ConsolidatedPortfolioView';
 import StaffManagementTab from './StaffManagementTab';
@@ -21,10 +22,12 @@ import {
   CalendarCheck,
   TrendingUp,
   Sparkles,
+  Megaphone,
 } from 'lucide-react';
 
 export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
   const { user, currentHotel, activeModules, selectHotel } = useAuth();
+  const { setIsBroadcastOpen } = useNotifications();
   const [moduleApiStatus, setModuleApiStatus] = useState(null);
   const [testingApi, setTestingApi] = useState(false);
 
@@ -303,12 +306,26 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
           </p>
         </div>
 
-        {/* Subscribed modules: Owner view only */}
+        {/* Subscribed modules & Broadcast Action: Owner view only */}
         {!isStaff && (
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '11px', color: 'var(--t-500)', textTransform: 'uppercase', fontWeight: '700', marginBottom: '6px' }}>
-              Subscribed Operational Modules
-            </div>
+          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+            <button
+              onClick={() => setIsBroadcastOpen(true)}
+              className="btn btn-primary btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                fontSize: '12px',
+                fontWeight: '700',
+              }}
+              title="Broadcast internal notification or reminder to staff"
+            >
+              <Megaphone size={13} />
+              <span>Broadcast Staff Reminder</span>
+            </button>
+
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'flex-end' }}>
               {activeModules.map((modCode) => (
                 <span key={modCode} className="badge badge-success" style={{ fontSize: '11px', padding: '3px 8px' }}>
