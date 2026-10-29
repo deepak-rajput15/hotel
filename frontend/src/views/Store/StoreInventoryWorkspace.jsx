@@ -61,6 +61,9 @@ export default function StoreInventoryWorkspace() {
   const [showStockModal, setShowStockModal] = useState(null); // product object
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(null); // product object for inspecting all batches
+  const [editingBatchNo, setEditingBatchNo] = useState(null);
+  const [editingBatchExpiry, setEditingBatchExpiry] = useState('');
+  const [savingBatch, setSavingBatch] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
 
   // Form states
@@ -226,6 +229,26 @@ export default function StoreInventoryWorkspace() {
       setErrorMsg(err.data?.message || err.message || 'Failed to add supplier');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveBatchExpiry = async (productId, batchNo) => {
+    try {
+      setSavingBatch(true);
+      setErrorMsg('');
+      const res = await storeApi.updateBatch(productId, batchNo, { expiry_period: editingBatchExpiry });
+      if (res.success) {
+        setSuccessBanner(`Batch '${batchNo}' expiry updated to ${editingBatchExpiry}!`);
+        setEditingBatchNo(null);
+        if (showBatchModal && showBatchModal.id === productId) {
+          setShowBatchModal(res.product);
+        }
+        fetchData();
+      }
+    } catch (err) {
+      setErrorMsg(err.data?.message || err.message || 'Failed to update batch expiry');
+    } finally {
+      setSavingBatch(false);
     }
   };
 
@@ -1452,9 +1475,62 @@ export default function StoreInventoryWorkspace() {
                             {isExp ? '⛔ EXPIRED' : isSoon ? `⚠️ DUE IN ${b.days_remaining}D` : '✓ VALID'}
                           </span>
                         </div>
-                        <div style={{ fontSize: '12px', color: 'var(--t-700)', marginTop: '4px' }}>
-                          Batch Qty: <strong>{b.quantity} {b.unit || showBatchModal.unit}</strong> &bull; Expiry: <strong>{b.expiry_period}</strong>
-                        </div>
+                        {editingBatchNo === b.batch_no ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--t-600)' }}>Expiry (MM/yyyy):</span>
+                            <input
+                              type="text"
+                              className="form-control"
+                              style={{ width: '95px', height: '26px', padding: '2px 6px', fontSize: '12px' }}
+                              value={editingBatchExpiry}
+                              onChange={(e) => setEditingBatchExpiry(e.target.value)}
+                              placeholder="MM/yyyy"
+                            />
+                            <button
+                              type="button"
+                              disabled={savingBatch}
+                              onClick={() => handleSaveBatchExpiry(showBatchModal.id, b.batch_no)}
+                              className="btn btn-primary btn-sm"
+                              style={{ height: '26px', padding: '2px 8px', fontSize: '11px' }}
+                            >
+                              {savingBatch ? '...' : 'Save'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingBatchNo(null)}
+                              className="btn btn-secondary btn-sm"
+                              style={{ height: '26px', padding: '2px 8px', fontSize: '11px' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--t-700)' }}>
+                              Batch Qty: <strong>{b.quantity} {b.unit || showBatchModal.unit}</strong> &bull; Expiry: <strong style={{ color: isExp ? '#dc2626' : isSoon ? '#d97706' : 'var(--t-900)' }}>{b.expiry_period}</strong>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingBatchNo(b.batch_no);
+                                setEditingBatchExpiry(b.expiry_period || '');
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--brand)',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                padding: '0 4px',
+                                textDecoration: 'underline',
+                              }}
+                              title="Edit expiry date for this batch"
+                            >
+                              ✏️ Edit Expiry
+                            </button>
+                          </div>
+                        )}
                         {b.received_at && (
                           <div style={{ fontSize: '10.5px', color: 'var(--t-400)', marginTop: '2px' }}>
                             Received: {new Date(b.received_at).toLocaleDateString()} {b.notes ? `• ${b.notes}` : ''}

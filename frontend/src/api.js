@@ -138,6 +138,11 @@ export const storeApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  updateBatch: (productId, batchNo, data) =>
+    apiRequest(`/store/products/${productId}/batches/${batchNo}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   getSuppliers: () => apiRequest('/store/suppliers'),
   createSupplier: (data) =>
     apiRequest('/store/suppliers', {

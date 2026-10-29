@@ -58,6 +58,7 @@ Route::prefix('v1')->group(function () {
                 Route::post('/products', [StoreInventoryController::class, 'storeProduct']);
                 Route::put('/products/{id}', [StoreInventoryController::class, 'updateProduct']);
                 Route::post('/products/{id}/adjust-stock', [StoreInventoryController::class, 'adjustStock']);
+                Route::put('/products/{id}/batches/{batchNo}', [StoreInventoryController::class, 'updateBatch']);
                 Route::get('/suppliers', [StoreInventoryController::class, 'suppliers']);
                 Route::post('/suppliers', [StoreInventoryController::class, 'storeSupplier']);
             });

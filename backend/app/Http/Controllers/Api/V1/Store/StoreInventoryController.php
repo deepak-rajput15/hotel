@@ -252,12 +252,111 @@ class StoreInventoryController extends Controller
             ],
         ]);
 
+        $oldExpiry = $product->expiry_period;
         $product->update($validated);
+
+        // If expiry_period changed, synchronize existing batches that belonged to the initial/existing stock
+        if (isset($validated['expiry_period']) && $validated['expiry_period'] !== $oldExpiry) {
+            $batches = is_array($product->batches) ? $product->batches : [];
+            $newExpiry = $validated['expiry_period'];
+            $modified = false;
+
+            foreach ($batches as &$b) {
+                if (($b['expiry_period'] ?? '') === $oldExpiry || ($b['notes'] ?? '') === 'Existing Stock' || ($b['notes'] ?? '') === 'Initial Stock' || ($b['notes'] ?? '') === 'Opening Stock') {
+                    $b['expiry_period'] = $newExpiry;
+                    $modified = true;
+                }
+            }
+            unset($b);
+
+            if ($modified) {
+                $product->batches = $batches;
+                $product->save();
+            }
+        }
+
         $product->load('supplier');
+
+        $expiryDetails = $product->computeExpiryDetails();
+        $product->expiry_status = $expiryDetails['status'];
+        $product->days_until_expiry = $expiryDetails['days_remaining'];
+        $product->has_expired_batch = $expiryDetails['has_expired_batch'];
+        $product->has_expiring_soon_batch = $expiryDetails['has_expiring_soon_batch'];
+        $product->oldest_expiring_batch = $expiryDetails['oldest_expiring_batch'];
+        $product->active_batches = $expiryDetails['batches'];
 
         return response()->json([
             'success' => true,
             'message' => "Product '{$product->name}' updated successfully.",
+            'product' => $product,
+        ]);
+    }
+
+    /**
+     * Update an individual stock batch (e.g. correct expiry date or notes).
+     */
+    public function updateBatch(Request $request, string $productId, string $batchNo): JsonResponse
+    {
+        $hotel = $this->getHotel($request);
+        $this->authorizeInventoryManagement($request);
+
+        $validated = $request->validate([
+            'expiry_period' => 'required|string|max:20',
+            'notes' => 'nullable|string|max:255',
+        ]);
+
+        $product = $hotel->products()->findOrFail($productId);
+        $batches = is_array($product->batches) ? $product->batches : [];
+        $found = false;
+
+        foreach ($batches as &$b) {
+            if (($b['batch_no'] ?? '') === $batchNo) {
+                $b['expiry_period'] = $validated['expiry_period'];
+                if ($request->has('notes')) {
+                    $b['notes'] = $validated['notes'];
+                }
+                $found = true;
+                break;
+            }
+        }
+        unset($b);
+
+        if (!$found) {
+            return response()->json([
+                'success' => false,
+                'message' => "Batch '{$batchNo}' not found on product '{$product->name}'.",
+            ], 404);
+        }
+
+        // Keep product expiry_period in sync with earliest active batch
+        $earliestExpiry = $validated['expiry_period'];
+        $earliestTimestamp = null;
+        foreach ($batches as $b) {
+            $p = $b['expiry_period'] ?? null;
+            $d = Product::parseExpiryDate($p);
+            if ($d && ($earliestTimestamp === null || $d->timestamp < $earliestTimestamp)) {
+                $earliestTimestamp = $d->timestamp;
+                $earliestExpiry = $p;
+            }
+        }
+        if ($earliestExpiry) {
+            $product->expiry_period = $earliestExpiry;
+        }
+
+        $product->batches = $batches;
+        $product->save();
+
+        $expiryDetails = $product->computeExpiryDetails();
+        $product->expiry_status = $expiryDetails['status'];
+        $product->days_until_expiry = $expiryDetails['days_remaining'];
+        $product->has_expired_batch = $expiryDetails['has_expired_batch'];
+        $product->has_expiring_soon_batch = $expiryDetails['has_expiring_soon_batch'];
+        $product->oldest_expiring_batch = $expiryDetails['oldest_expiring_batch'];
+        $product->active_batches = $expiryDetails['batches'];
+
+        return response()->json([
+            'success' => true,
+            'message' => "Batch '{$batchNo}' expiry updated to '{$validated['expiry_period']}'.",
             'product' => $product,
         ]);
     }
