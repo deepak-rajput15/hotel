@@ -77,3 +77,4 @@ class InternalNotification extends Model
         return $query->where('is_banner', true);
     }
 }
+

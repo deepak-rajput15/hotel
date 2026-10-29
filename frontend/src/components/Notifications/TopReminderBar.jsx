@@ -50,7 +50,7 @@ export default function TopReminderBar() {
     if (b.sender_type === 'PLATFORM_ADMIN') return 'SaaS Platform Broadcast';
     if (b.target_scope === 'SPECIFIC_ROLE') {
       const roleMap = {
-        'front-desk': 'Front Desk Desk',
+        'front-desk': 'Front Desk Reception',
         'head-chef': 'Kitchen & Chefs',
         'restaurant-cashier': 'Restaurant Cashiers',
         'storekeeper': 'Store & Inventory',
@@ -214,3 +214,4 @@ export default function TopReminderBar() {
     </div>
   );
 }
+
