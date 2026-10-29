@@ -15,6 +15,7 @@ import {
   Lock,
   ChevronDown,
   BarChart3,
+  Globe,
 } from 'lucide-react';
 
 export default function Sidebar({ currentTab, setCurrentTab }) {
@@ -292,6 +293,13 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
                       icon={BarChart3}
                       label="Reports & Night Audit"
                     />
+                    <NavItem
+                      active={currentTab === 'channel_manager'}
+                      onClick={() => setCurrentTab('channel_manager')}
+                      icon={Globe}
+                      label="OTA Channel Manager"
+                      highlight
+                    />
 
                     <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--t-500)', padding: '14px 10px 6px', letterSpacing: '0.04em' }}>
                       Subscribed Modules
@@ -378,6 +386,14 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
               onClick={() => setCurrentTab('reports')}
               icon={BarChart3}
               label="Reports & Night Audit"
+              highlight
+            />
+
+            <NavItem
+              active={currentTab === 'channel_manager'}
+              onClick={() => setCurrentTab('channel_manager')}
+              icon={Globe}
+              label="OTA Channel Manager"
               highlight
             />
 

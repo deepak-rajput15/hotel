@@ -369,6 +369,38 @@ export const whatsappApi = {
     }),
 };
 
+export const otaApi = {
+  getChannels: (hotelId = null) =>
+    apiRequest('/ota/channels', {
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+  updateChannel: (channelCode, data, hotelId = null) =>
+    apiRequest(`/ota/channels/${channelCode}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+  pushAri: (channelCode = null, hotelId = null) =>
+    apiRequest('/ota/channels/push-ari', {
+      method: 'POST',
+      body: JSON.stringify({ channel_code: channelCode }),
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+  getLogs: (params = {}, hotelId = null) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/ota/logs${query ? `?${query}` : ''}`, {
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    });
+  },
+  simulateBooking: (data, hotelId = null) =>
+    apiRequest('/ota/simulate-booking', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+};
+
+
 
 
 

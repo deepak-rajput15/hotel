@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Admin\SuperAdminHotelController;
 use App\Http\Controllers\Api\V1\Admin\SuperAdminModuleController;
 use App\Http\Controllers\Api\V1\Admin\SuperAdminOrganizationController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\ChannelManager\OtaChannelController;
 use App\Http\Controllers\Api\V1\Finance\ShiftHandoverController;
 use App\Http\Controllers\Api\V1\FrontOffice\FrontOfficeController;
 use App\Http\Controllers\Api\V1\Guest\RoomDiningGuestController;
@@ -30,6 +31,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/{hotelCode}/{roomNumber}', [RoomDiningGuestController::class, 'getRoomMenu']);
         Route::post('/{hotelCode}/{roomNumber}/order', [RoomDiningGuestController::class, 'placeRoomOrder']);
     });
+
+    // Public Inbound Webhook for OTAs (MakeMyTrip, Booking.com, Agoda)
+    Route::post('/public/ota/webhook/{channelCode}', [OtaChannelController::class, 'inboundWebhook']);
 
     // 2. Protected Authenticated Routes
     Route::middleware('auth:sanctum')->group(function () {
@@ -147,6 +151,15 @@ Route::prefix('v1')->group(function () {
                 Route::get('/logs', [WhatsAppController::class, 'logs']);
                 Route::post('/resend', [WhatsAppController::class, 'resend']);
                 Route::post('/daily-summary', [WhatsAppController::class, 'sendDailySummary']);
+            });
+
+            // OTA Channel Manager & 2-Way Sync Engine routes
+            Route::prefix('ota')->group(function () {
+                Route::get('/channels', [OtaChannelController::class, 'listChannels']);
+                Route::put('/channels/{channelCode}', [OtaChannelController::class, 'updateChannel']);
+                Route::post('/channels/push-ari', [OtaChannelController::class, 'pushAri']);
+                Route::get('/logs', [OtaChannelController::class, 'logs']);
+                Route::post('/simulate-booking', [OtaChannelController::class, 'simulateBooking']);
             });
         });
 

@@ -141,3 +141,4 @@ class ShiftHandover extends Model
         ];
     }
 }
+

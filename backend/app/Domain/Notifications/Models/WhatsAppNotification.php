@@ -47,3 +47,4 @@ class WhatsAppNotification extends Model
         return $this->belongsTo(Booking::class);
     }
 }
+

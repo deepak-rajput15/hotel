@@ -10,6 +10,7 @@ import PurchaseOrdersWorkspace from '../Purchase/PurchaseOrdersWorkspace';
 import ReportsWorkspace from '../Reports/ReportsWorkspace';
 import RestaurantPosWorkspace from '../Restaurant/RestaurantPosWorkspace';
 import KitchenDisplayWorkspace from '../Kitchen/KitchenDisplayWorkspace';
+import OtaChannelManagerWorkspace from '../ChannelManager/OtaChannelManagerWorkspace';
 import {
   Bed,
   ConciergeBell,
@@ -272,6 +273,15 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
     return (
       <div className="page-body">
         <KitchenDisplayWorkspace />
+      </div>
+    );
+  }
+
+  // 8. OTA Channel Manager & 2-Way Sync Engine Route
+  if (activeTab === 'channel_manager' || activeTab === 'ota') {
+    return (
+      <div className="page-body">
+        <OtaChannelManagerWorkspace />
       </div>
     );
   }

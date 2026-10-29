@@ -129,6 +129,7 @@ function AppContent() {
         case 'dashboard': return `${currentHotel?.name || 'Hotel'} Executive Dashboard`;
         case 'staff': return `${currentHotel?.name || 'Hotel'} • Staff Management`;
         case 'reports': return `${currentHotel?.name || 'Hotel'} • Reports & Night Audit`;
+        case 'channel_manager': return `${currentHotel?.name || 'Hotel'} • OTA Channel Manager & 2-Way Sync`;
         case 'front_office': return 'Front Office Operations';
         case 'rooms': return 'Rooms Management & Rack Grid';
         case 'restaurant': return 'Restaurant & Dining POS';

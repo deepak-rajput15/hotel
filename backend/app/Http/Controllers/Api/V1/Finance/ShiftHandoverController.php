@@ -358,3 +358,4 @@ class ShiftHandoverController extends Controller
         ]);
     }
 }
+
