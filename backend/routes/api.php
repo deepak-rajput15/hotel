@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\Finance\ShiftHandoverController;
 use App\Http\Controllers\Api\V1\FrontOffice\FrontOfficeController;
 use App\Http\Controllers\Api\V1\Guest\RoomDiningGuestController;
 use App\Http\Controllers\Api\V1\Hotel\HotelModuleController;
+use App\Http\Controllers\Api\V1\Hotel\HotelPaymentSettingController;
 use App\Http\Controllers\Api\V1\Hotel\HotelStaffController;
 use App\Http\Controllers\Api\V1\Kitchen\KitchenKdsController;
 use App\Http\Controllers\Api\V1\Notifications\NotificationController;
@@ -160,6 +161,12 @@ Route::prefix('v1')->group(function () {
                 Route::post('/channels/push-ari', [OtaChannelController::class, 'pushAri']);
                 Route::get('/logs', [OtaChannelController::class, 'logs']);
                 Route::post('/simulate-booking', [OtaChannelController::class, 'simulateBooking']);
+            });
+
+            // Hotel Property UPI & Payment Settings
+            Route::prefix('hotel/payment-settings')->group(function () {
+                Route::get('/', [HotelPaymentSettingController::class, 'getSettings']);
+                Route::put('/', [HotelPaymentSettingController::class, 'updateSettings']);
             });
         });
 

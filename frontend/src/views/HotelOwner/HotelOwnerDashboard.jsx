@@ -24,13 +24,17 @@ import {
   TrendingUp,
   Sparkles,
   Megaphone,
+  QrCode,
+  Smartphone,
 } from 'lucide-react';
+import UpiSettingsModal from '../../components/Payments/UpiSettingsModal';
 
 export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
   const { user, currentHotel, activeModules, selectHotel } = useAuth();
   const { setIsBroadcastOpen } = useNotifications();
   const [moduleApiStatus, setModuleApiStatus] = useState(null);
   const [testingApi, setTestingApi] = useState(false);
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'restaurant') {
@@ -319,22 +323,45 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
         {/* Subscribed modules & Broadcast Action: Owner view only */}
         {!isStaff && (
           <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-            <button
-              onClick={() => setIsBroadcastOpen(true)}
-              className="btn btn-primary btn-sm"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                fontSize: '12px',
-                fontWeight: '700',
-              }}
-              title="Broadcast internal notification or reminder to staff"
-            >
-              <Megaphone size={13} />
-              <span>Broadcast Staff Reminder</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setIsUpiModalOpen(true)}
+                className="btn btn-outline btn-sm"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  background: '#ffffff',
+                  borderColor: '#cbd5e1',
+                  color: 'var(--brand)',
+                }}
+                title="Configure Hotel UPI ID and Payment QR Code"
+              >
+                <QrCode size={13} />
+                <span>UPI & QR Settings</span>
+              </button>
+
+              <button
+                onClick={() => setIsBroadcastOpen(true)}
+                className="btn btn-primary btn-sm"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                }}
+                title="Broadcast internal notification or reminder to staff"
+              >
+                <Megaphone size={13} />
+                <span>Broadcast Staff Reminder</span>
+              </button>
+            </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'flex-end' }}>
               {activeModules.map((modCode) => (
@@ -557,6 +584,16 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
           )}
         </div>
       )}
+
+      {/* Hotel UPI & QR Settings Modal */}
+      <UpiSettingsModal
+        isOpen={isUpiModalOpen}
+        onClose={() => setIsUpiModalOpen(false)}
+        hotelId={currentHotel?.id}
+        onSettingsUpdated={() => {
+          setIsUpiModalOpen(false);
+        }}
+      />
     </div>
   );
 }

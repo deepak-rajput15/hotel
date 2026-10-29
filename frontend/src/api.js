@@ -400,6 +400,19 @@ export const otaApi = {
     }),
 };
 
+export const paymentSettingsApi = {
+  getSettings: (hotelId = null) =>
+    apiRequest('/hotel/payment-settings', {
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+  updateSettings: (data, hotelId = null) =>
+    apiRequest('/hotel/payment-settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+};
+
 
 
 

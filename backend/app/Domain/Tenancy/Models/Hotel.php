@@ -32,11 +32,39 @@ class Hotel extends Model
         'currency',
         'status',
         'settings',
+        'upi_id',
+        'upi_payee_name',
+        'upi_qr_image',
+        'upi_merchant_code',
     ];
 
     protected $casts = [
         'settings' => 'array',
     ];
+
+    /**
+     * Get effective UPI ID for this hotel property.
+     */
+    public function getEffectiveUpiIdAttribute(): string
+    {
+        return $this->upi_id ?? $this->settings['upi_id'] ?? 'merchant@apexhotel';
+    }
+
+    /**
+     * Get effective UPI Payee Name for this hotel property.
+     */
+    public function getEffectiveUpiPayeeNameAttribute(): string
+    {
+        return $this->upi_payee_name ?? $this->settings['upi_payee_name'] ?? $this->name;
+    }
+
+    /**
+     * Get effective custom UPI QR image/URL if uploaded.
+     */
+    public function getEffectiveUpiQrImageAttribute(): ?string
+    {
+        return $this->upi_qr_image ?? $this->settings['upi_qr_image'] ?? null;
+    }
 
     public function organization(): BelongsTo
     {

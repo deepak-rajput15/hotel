@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { restaurantApi } from '../../api';
+import UpiQrPaymentDisplay from '../../components/Payments/UpiQrPaymentDisplay';
 import {
   Utensils,
   Plus,
@@ -1656,13 +1657,17 @@ export default function RestaurantPosWorkspace() {
               </div>
             )}
 
-            {/* UPI QR Display Placeholder */}
+            {/* Dynamic Scannable UPI QR Display & Configuration */}
             {settlementMethod === 'UPI_QR' && (
-              <div style={{ textAlign: 'center', padding: '12px', background: 'var(--surface-sub)', borderRadius: 'var(--r-sm)', marginBottom: '16px' }}>
-                <QrCode size={48} style={{ margin: '0 auto 6px', color: 'var(--brand)' }} />
-                <div style={{ fontSize: '12px', fontWeight: '700' }}>Scan to Pay via GooglePay / PhonePe / Paytm</div>
-                <div style={{ fontSize: '11px', color: 'var(--t-500)', marginTop: '2px' }}>UPI ID: merchant@apexhotel</div>
-              </div>
+              <UpiQrPaymentDisplay
+                amount={showSettleModal.grand_total}
+                orderNumber={showSettleModal.order_number}
+                hotelId={currentHotel?.id}
+                hotelName={currentHotel?.name}
+                onUtrChange={(utrVal) => setTransactionRef(utrVal)}
+                initialUtr={transactionRef}
+                canConfigure={true}
+              />
             )}
 
             <button

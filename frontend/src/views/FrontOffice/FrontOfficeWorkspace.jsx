@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { frontOfficeApi, whatsappApi } from '../../api';
+import UpiQrPaymentDisplay from '../../components/Payments/UpiQrPaymentDisplay';
 import {
   ConciergeBell,
   Bed,
@@ -3162,6 +3163,18 @@ export default function FrontOfficeWorkspace() {
                   <option value="BANK_TRANSFER">Direct Bank Transfer</option>
                 </select>
               </div>
+
+              {paymentForm.payment_method === 'UPI_QR' && (
+                <UpiQrPaymentDisplay
+                  amount={paymentForm.amount || 0}
+                  orderNumber={selectedFolioBooking?.booking_number || 'STAY'}
+                  hotelId={currentHotel?.id}
+                  hotelName={currentHotel?.name}
+                  onUtrChange={(utrVal) => setPaymentForm((prev) => ({ ...prev, transaction_reference: utrVal }))}
+                  initialUtr={paymentForm.transaction_reference}
+                  canConfigure={true}
+                />
+              )}
 
               <div className="form-group">
                 <label className="form-label">Txn / UTR Reference</label>
