@@ -314,5 +314,41 @@ export const guestApi = {
     apiRequest(`/public/room-dining/orders/${orderNumber}`),
 };
 
+export const shiftsApi = {
+  getCurrent: (department = 'FRONT_DESK', hotelId = null) =>
+    apiRequest(`/shifts/current?department=${encodeURIComponent(department)}`, {
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+  open: (data, hotelId = null) =>
+    apiRequest('/shifts/open', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+  addCashTransaction: (shiftId, data, hotelId = null) =>
+    apiRequest(`/shifts/${shiftId}/cash-transaction`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+  close: (shiftId, data, hotelId = null) =>
+    apiRequest(`/shifts/${shiftId}/close`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+  list: (params = {}, hotelId = null) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/shifts${query ? `?${query}` : ''}`, {
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    });
+  },
+  getSlip: (shiftId, hotelId = null) =>
+    apiRequest(`/shifts/${shiftId}/slip`, {
+      headers: hotelId ? { 'X-Hotel-Context': hotelId } : {},
+    }),
+};
+
+
 
 

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Admin\SuperAdminHotelController;
 use App\Http\Controllers\Api\V1\Admin\SuperAdminModuleController;
 use App\Http\Controllers\Api\V1\Admin\SuperAdminOrganizationController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\Finance\ShiftHandoverController;
 use App\Http\Controllers\Api\V1\FrontOffice\FrontOfficeController;
 use App\Http\Controllers\Api\V1\Guest\RoomDiningGuestController;
 use App\Http\Controllers\Api\V1\Hotel\HotelModuleController;
@@ -128,6 +129,16 @@ Route::prefix('v1')->group(function () {
                 Route::get('/guest-ledger', [ReportsController::class, 'guestLedger']);
                 Route::get('/inventory', [ReportsController::class, 'inventory']);
                 Route::get('/export', [ReportsController::class, 'exportCsv']);
+            });
+
+            // Shift Handover & Cash Drawer Register routes
+            Route::prefix('shifts')->group(function () {
+                Route::get('/current', [ShiftHandoverController::class, 'getCurrentShift']);
+                Route::post('/open', [ShiftHandoverController::class, 'openShift']);
+                Route::post('/{shiftId}/cash-transaction', [ShiftHandoverController::class, 'recordCashTransaction']);
+                Route::post('/{shiftId}/close', [ShiftHandoverController::class, 'closeShift']);
+                Route::get('/', [ShiftHandoverController::class, 'listShifts']);
+                Route::get('/{shiftId}/slip', [ShiftHandoverController::class, 'getShiftSlip']);
             });
         });
 

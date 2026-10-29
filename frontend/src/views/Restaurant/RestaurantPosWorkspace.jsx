@@ -26,7 +26,9 @@ import {
   TrendingUp,
   Receipt,
   Trash2,
+  Briefcase,
 } from 'lucide-react';
+import ShiftRegisterModal from '../../components/Finance/ShiftRegisterModal';
 
 const STANDARD_AREAS = ['ALL', 'AC Dining Hall', 'Family Lounge', 'Sea View Terrace', 'VIP Private Dining'];
 
@@ -35,6 +37,7 @@ export default function RestaurantPosWorkspace() {
 
   const [activeTab, setActiveTab] = useState('tables'); // 'tables', 'pos', 'orders', 'menu_management'
   const [loading, setLoading] = useState(true);
+  const [showShiftRegisterModal, setShowShiftRegisterModal] = useState(false);
 
   // 1. Tables State
   const [tables, setTables] = useState([]);
@@ -457,6 +460,26 @@ export default function RestaurantPosWorkspace() {
           >
             <Bed size={15} />
             In-Room QR Dining
+          </button>
+
+          <button
+            onClick={() => setShowShiftRegisterModal(true)}
+            style={{
+              padding: '7px 14px',
+              borderRadius: 'var(--r-sm)',
+              fontSize: '13px',
+              fontWeight: '700',
+              background: '#ecfdf5',
+              color: '#065f46',
+              border: '1px solid #a7f3d0',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Briefcase size={15} />
+            💼 Shift & Cash Drawer
           </button>
         </div>
       </div>
@@ -1865,6 +1888,14 @@ export default function RestaurantPosWorkspace() {
           </div>
         </div>
       )}
+
+      {/* Restaurant Shift Handover & Cash Drawer Modal */}
+      <ShiftRegisterModal
+        isOpen={showShiftRegisterModal}
+        onClose={() => setShowShiftRegisterModal(false)}
+        defaultDepartment="RESTAURANT_POS"
+        hotelId={currentHotel?.id}
+      />
     </div>
   );
 }

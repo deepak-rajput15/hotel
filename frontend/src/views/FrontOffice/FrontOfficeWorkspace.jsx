@@ -39,7 +39,9 @@ import {
   Check,
   Zap,
   Key,
+  Briefcase,
 } from 'lucide-react';
+import ShiftRegisterModal from '../../components/Finance/ShiftRegisterModal';
 
 const formatDateTimeLocal = (date) => {
   if (!date) return '';
@@ -60,6 +62,7 @@ export default function FrontOfficeWorkspace() {
   );
 
   const [activeSubTab, setActiveSubTab] = useState('in_house'); // in_house, rack, calendar, reservations
+  const [showShiftRegisterModal, setShowShiftRegisterModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState(null);
   const [rooms, setRooms] = useState([]);
@@ -697,6 +700,23 @@ export default function FrontOfficeWorkspace() {
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             <span>Refresh</span>
+          </button>
+
+          <button
+            onClick={() => setShowShiftRegisterModal(true)}
+            className="btn btn-secondary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: '700',
+              background: '#ecfdf5',
+              color: '#065f46',
+              border: '1px solid #a7f3d0',
+            }}
+          >
+            <Briefcase size={15} />
+            <span>💼 Shift & Cash Drawer</span>
           </button>
 
           <button
@@ -3774,6 +3794,14 @@ export default function FrontOfficeWorkspace() {
           </div>
         </div>
       )}
+
+      {/* Shift Handover & Cash Drawer Register Modal */}
+      <ShiftRegisterModal
+        isOpen={showShiftRegisterModal}
+        onClose={() => setShowShiftRegisterModal(false)}
+        defaultDepartment="FRONT_DESK"
+        hotelId={currentHotel?.id}
+      />
     </div>
   );
 }

@@ -358,3 +358,4 @@ class RoomDiningGuestController extends Controller
         ]);
     }
 }
+
