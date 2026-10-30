@@ -116,6 +116,36 @@ export const frontOfficeApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  // Lost & Found Register Operations
+  getLostAndFoundItems: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiRequest(`/front-office/lost-and-found${qs ? '?' + qs : ''}`);
+  },
+  getLostAndFoundItemDetail: (id) => apiRequest(`/front-office/lost-and-found/${id}`),
+  createLostAndFoundItem: (data) =>
+    apiRequest('/front-office/lost-and-found', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateLostAndFoundItem: (id, data) =>
+    apiRequest(`/front-office/lost-and-found/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  claimLostAndFoundItem: (id, data) =>
+    apiRequest(`/front-office/lost-and-found/${id}/claim`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  disposeLostAndFoundItem: (id, data) =>
+    apiRequest(`/front-office/lost-and-found/${id}/dispose`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  deleteLostAndFoundItem: (id) =>
+    apiRequest(`/front-office/lost-and-found/${id}`, {
+      method: 'DELETE',
+    }),
 };
 
 export const storeApi = {

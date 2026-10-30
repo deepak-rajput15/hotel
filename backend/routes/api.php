@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\ChannelManager\OtaChannelController;
 use App\Http\Controllers\Api\V1\Finance\ShiftHandoverController;
 use App\Http\Controllers\Api\V1\FrontOffice\FrontOfficeController;
+use App\Http\Controllers\Api\V1\FrontOffice\LostAndFoundController;
 use App\Http\Controllers\Api\V1\Guest\RoomDiningGuestController;
 use App\Http\Controllers\Api\V1\Hotel\HotelModuleController;
 use App\Http\Controllers\Api\V1\Hotel\HotelPaymentSettingController;
@@ -76,6 +77,15 @@ Route::prefix('v1')->group(function () {
                 Route::post('/bookings/{id}/folio-items', [FrontOfficeController::class, 'addFolioCharge']);
                 Route::post('/bookings/{id}/payments', [FrontOfficeController::class, 'recordPayment']);
                 Route::post('/bookings/{id}/check-out', [FrontOfficeController::class, 'checkOut']);
+
+                // Lost & Found Operations Register
+                Route::get('/lost-and-found', [LostAndFoundController::class, 'index']);
+                Route::post('/lost-and-found', [LostAndFoundController::class, 'store']);
+                Route::get('/lost-and-found/{id}', [LostAndFoundController::class, 'show']);
+                Route::put('/lost-and-found/{id}', [LostAndFoundController::class, 'update']);
+                Route::post('/lost-and-found/{id}/claim', [LostAndFoundController::class, 'claim']);
+                Route::post('/lost-and-found/{id}/dispose', [LostAndFoundController::class, 'dispose']);
+                Route::delete('/lost-and-found/{id}', [LostAndFoundController::class, 'destroy']);
             });
 
             // Store & Inventory routes (Products, Stock adjustment, Low stock alerts, Suppliers)

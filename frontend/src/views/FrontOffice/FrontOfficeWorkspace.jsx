@@ -43,6 +43,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 import ShiftRegisterModal from '../../components/Finance/ShiftRegisterModal';
+import LostAndFoundRegister from './LostAndFoundRegister';
 
 const formatDateTimeLocal = (date) => {
   if (!date) return '';
@@ -1002,6 +1003,29 @@ export default function FrontOfficeWorkspace() {
           <FileText size={16} />
           <span>Booking & Checkout History ({bookings.length})</span>
         </button>
+
+        <button
+          onClick={() => setActiveSubTab('lost_and_found')}
+          className={`tab-btn ${activeSubTab === 'lost_and_found' ? 'tab-btn-active' : ''}`}
+          style={{
+            padding: '10px 18px',
+            fontSize: '13.5px',
+            fontWeight: activeSubTab === 'lost_and_found' ? '700' : '500',
+            borderBottom: activeSubTab === 'lost_and_found' ? '2px solid var(--brand)' : '2px solid transparent',
+            color: activeSubTab === 'lost_and_found' ? 'var(--brand)' : 'var(--t-600)',
+            background: 'none',
+            borderTop: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <Search size={16} />
+          <span>Lost & Found Register</span>
+        </button>
       </div>
 
       {/* TAB 1: IN-HOUSE GUESTS & FOLIO BILLING */}
@@ -1878,6 +1902,11 @@ export default function FrontOfficeWorkspace() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* TAB 5: LOST & FOUND REGISTER */}
+      {activeSubTab === 'lost_and_found' && (
+        <LostAndFoundRegister rooms={rooms} />
       )}
 
       {/* ============================================================== */}

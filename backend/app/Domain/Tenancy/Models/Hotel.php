@@ -160,6 +160,11 @@ class Hotel extends Model
         return $this->hasMany(\App\Domain\Restaurant\Models\RestaurantOrder::class);
     }
 
+    public function lostAndFoundItems(): HasMany
+    {
+        return $this->hasMany(\App\Domain\FrontOffice\Models\LostAndFoundItem::class);
+    }
+
     /**
      * Check if a module is currently active and subscribed for this hotel.
      */
