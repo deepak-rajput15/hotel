@@ -382,7 +382,7 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
             {!isStaff && (
               <MetricCard
                 label="Active Subscriptions"
-                value={`${activeModules.length} / 6`}
+                value={`${[isModuleActive('front_office') || isModuleActive('rooms'), isModuleActive('restaurant'), isModuleActive('kitchen'), isModuleActive('store'), isModuleActive('purchase')].filter(Boolean).length} / 5`}
                 subtext="Modules Enabled by SaaS Admin"
                 icon={Sparkles}
                 color="var(--brand)"
@@ -424,17 +424,10 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
                 <ModuleStatusCard
                   code="front_office"
-                  title="Front Office"
+                  title="Front Office & Rooms"
                   icon={ConciergeBell}
-                  description="Guest reservations, room assignment, walk-ins, and guest ledger."
-                  active={isModuleActive('front_office')}
-                />
-                <ModuleStatusCard
-                  code="rooms"
-                  title="Rooms & Rack"
-                  icon={Bed}
-                  description="Visual room rack, housekeeping status, room tariffs, and floor maps."
-                  active={isModuleActive('rooms')}
+                  description="Guest check-in, visual room rack, tape chart, in-house folios, KYC verification, and room reservations."
+                  active={isModuleActive('front_office') || isModuleActive('rooms')}
                 />
                 <ModuleStatusCard
                   code="restaurant"

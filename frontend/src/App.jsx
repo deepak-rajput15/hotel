@@ -108,8 +108,9 @@ function AppContent() {
       }
     } else if (isStaff) {
       switch (currentTab) {
-        case 'front_office': return 'Front Office Operations Desk';
-        case 'rooms': return 'Rooms Management & Rack Grid';
+        case 'front_office':
+        case 'rooms':
+          return 'Front Office & Rooms Desk';
         case 'restaurant': return 'Restaurant & Dining POS';
         case 'kitchen': return 'Kitchen Display System (KOT)';
         case 'store': return 'Store & Inventory Management';
@@ -130,8 +131,9 @@ function AppContent() {
         case 'staff': return `${currentHotel?.name || 'Hotel'} • Staff Management`;
         case 'reports': return `${currentHotel?.name || 'Hotel'} • Reports & Night Audit`;
         case 'channel_manager': return `${currentHotel?.name || 'Hotel'} • OTA Channel Manager & 2-Way Sync`;
-        case 'front_office': return 'Front Office Operations';
-        case 'rooms': return 'Rooms Management & Rack Grid';
+        case 'front_office':
+        case 'rooms':
+          return 'Front Office & Rooms Operations';
         case 'restaurant': return 'Restaurant & Dining POS';
         case 'kitchen': return 'Kitchen Display System (KOT)';
         case 'store': return 'Store & Inventory Management';

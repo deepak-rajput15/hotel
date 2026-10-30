@@ -25,13 +25,19 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
   const accessibleHotels = user?.accessible_hotels || [];
 
   const allModulesList = [
-    { code: 'front_office', name: 'Front Office', icon: ConciergeBell },
-    { code: 'rooms', name: 'Rooms & Rack', icon: Bed },
+    { code: 'front_office', name: 'Front Office & Rooms', icon: ConciergeBell },
     { code: 'restaurant', name: 'Restaurant POS', icon: Utensils },
     { code: 'kitchen', name: 'Kitchen (KOT)', icon: ChefHat },
     { code: 'store', name: 'Store / Inventory', icon: Boxes },
     { code: 'purchase', name: 'Purchase Orders', icon: ShoppingCart },
   ];
+
+  const isModuleSubscribed = (modCode) => {
+    if (modCode === 'front_office') {
+      return activeModules.includes('front_office') || activeModules.includes('rooms');
+    }
+    return activeModules.includes(modCode);
+  };
 
   return (
     <aside className="sidebar">
@@ -151,7 +157,7 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
                     Code: <strong style={{ color: 'var(--t-900)' }}>{currentHotel.hotel_code}</strong>
                   </span>
                   <span className="badge badge-active" style={{ fontSize: '10px', padding: '2px 8px' }}>
-                    {activeModules.length} Subscribed
+                    {allModulesList.filter(m => isModuleSubscribed(m.code)).length} Subscribed
                   </span>
                 </div>
               )
@@ -306,11 +312,12 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
                     </div>
 
                     {allModulesList.map((m) => {
-                      const isSubscribed = activeModules.includes(m.code);
+                      const isSubscribed = isModuleSubscribed(m.code);
+                      const isItemActive = currentTab === m.code || (m.code === 'front_office' && currentTab === 'rooms');
                       return (
                         <div key={m.code}>
                           <NavItem
-                            active={currentTab === m.code}
+                            active={isItemActive}
                             onClick={() => {
                               if (isSubscribed) setCurrentTab(m.code);
                             }}
@@ -334,7 +341,7 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
 
               const roleAllowedModules = {
                 'head-chef': ['kitchen'],
-                'front-desk': ['front_office', 'rooms'],
+                'front-desk': ['front_office'],
                 'restaurant-cashier': ['restaurant'],
                 'storekeeper': ['store', 'purchase'],
               };
@@ -342,11 +349,12 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
               const displayList = allModulesList.filter(m => staffPermitted.includes(m.code));
 
               return displayList.map((m) => {
-                const isSubscribed = activeModules.includes(m.code);
+                const isSubscribed = isModuleSubscribed(m.code);
+                const isItemActive = currentTab === m.code || (m.code === 'front_office' && currentTab === 'rooms');
                 return (
                   <div key={m.code}>
                     <NavItem
-                      active={currentTab === m.code}
+                      active={isItemActive}
                       onClick={() => {
                         if (isSubscribed) setCurrentTab(m.code);
                       }}
@@ -402,11 +410,12 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
             </div>
 
             {allModulesList.map((m) => {
-              const isSubscribed = activeModules.includes(m.code);
+              const isSubscribed = isModuleSubscribed(m.code);
+              const isItemActive = currentTab === m.code || (m.code === 'front_office' && currentTab === 'rooms');
               return (
                 <div key={m.code}>
                   <NavItem
-                    active={currentTab === m.code}
+                    active={isItemActive}
                     onClick={() => {
                       if (isSubscribed) setCurrentTab(m.code);
                     }}
