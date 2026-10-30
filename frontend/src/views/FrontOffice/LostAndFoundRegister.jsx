@@ -1168,3 +1168,4 @@ export default function LostAndFoundRegister({ rooms = [] }) {
     </div>
   );
 }
+

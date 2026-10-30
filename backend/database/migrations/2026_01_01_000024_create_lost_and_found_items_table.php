@@ -61,3 +61,4 @@ return new class extends Migration
         Schema::dropIfExists('lost_and_found_items');
     }
 };
+
