@@ -120,7 +120,7 @@ class ShiftHandover extends Model
             ->sum('amount');
 
         $floatAdditions = (float) $this->cashTransactions()
-            ->where('transaction_type', ['FLOAT_ADDITION'])
+            ->whereIn('transaction_type', ['FLOAT_ADDITION', 'PAYIN'])
             ->sum('amount');
 
         // Expected cash in drawer right now

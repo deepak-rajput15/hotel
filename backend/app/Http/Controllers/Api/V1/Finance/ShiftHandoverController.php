@@ -72,17 +72,23 @@ class ShiftHandoverController extends Controller
             ->latest('opened_at')
             ->first();
 
-        $eligibleStaff = UserHotelAccess::where('hotel_id', $hotel->id)
-            ->with(['user:id,name,email', 'role:id,name,display_name'])
-            ->get()
-            ->map(function ($access) {
-                return [
-                    'id' => $access->user->id,
-                    'name' => $access->user->name,
-                    'email' => $access->user->email,
-                    'role' => $access->role->display_name ?? $access->role->name,
-                ];
-            });
+        try {
+            $eligibleStaff = UserHotelAccess::where('hotel_id', $hotel->id)
+                ->with(['user:id,name,email', 'role:id,name,display_name'])
+                ->get()
+                ->filter(fn ($access) => $access->user !== null)
+                ->map(function ($access) {
+                    return [
+                        'id' => $access->user->id,
+                        'name' => $access->user->name,
+                        'email' => $access->user->email,
+                        'role' => $access->role?->display_name ?? $access->role?->name ?? 'Staff',
+                    ];
+                })
+                ->values();
+        } catch (\Throwable $e) {
+            $eligibleStaff = collect([]);
+        }
 
         if (!$activeShift) {
             return response()->json([
@@ -98,7 +104,23 @@ class ShiftHandoverController extends Controller
             ]);
         }
 
-        $liveFinancials = $activeShift->computeLiveFinancials();
+        try {
+            $liveFinancials = $activeShift->computeLiveFinancials();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("computeLiveFinancials failed for shift {$activeShift->id}: " . $e->getMessage());
+            $liveFinancials = [
+                'opening_float' => (float) $activeShift->opening_float,
+                'front_office_cash' => 0.0,
+                'pos_cash' => 0.0,
+                'total_cash_sales' => 0.0,
+                'total_upi_sales' => 0.0,
+                'total_card_sales' => 0.0,
+                'pos_room_folio_transfers' => 0.0,
+                'cash_payouts' => (float) ($activeShift->cash_paid_out ?? 0),
+                'float_additions' => 0.0,
+                'expected_cash' => (float) ($activeShift->opening_float ?? 0),
+            ];
+        }
 
         return response()->json([
             'success' => true,

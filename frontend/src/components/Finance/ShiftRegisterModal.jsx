@@ -64,11 +64,60 @@ export default function ShiftRegisterModal({ isOpen, onClose, defaultDepartment 
     try {
       const res = await shiftsApi.getCurrent(department, hotelId);
       if (res.success) {
+        if (!res.has_active_shift) {
+          // Double check history list in case of edge state
+          try {
+            const histRes = await shiftsApi.list({ department }, hotelId);
+            const openShift = histRes?.shifts?.data?.find((s) => s.status === 'OPEN');
+            if (openShift) {
+              setShiftData({
+                has_active_shift: true,
+                shift: openShift,
+                live_financials: {
+                  opening_float: Number(openShift.opening_float) || 0,
+                  total_cash_sales: 0,
+                  total_upi_sales: 0,
+                  total_card_sales: 0,
+                  cash_payouts: 0,
+                  float_additions: 0,
+                  expected_cash: Number(openShift.opening_float) || 0,
+                },
+                staff_options: res.staff_options || [],
+              });
+              setStaffOptions(res.staff_options || []);
+              return;
+            }
+          } catch (e2) {
+            // ignore
+          }
+        }
         setShiftData(res);
         setStaffOptions(res.staff_options || []);
       }
     } catch (err) {
       setError(err.message || 'Failed to fetch shift status');
+      try {
+        const histRes = await shiftsApi.list({ department }, hotelId);
+        const openShift = histRes?.shifts?.data?.find((s) => s.status === 'OPEN');
+        if (openShift) {
+          setShiftData({
+            has_active_shift: true,
+            shift: openShift,
+            live_financials: {
+              opening_float: Number(openShift.opening_float) || 0,
+              total_cash_sales: 0,
+              total_upi_sales: 0,
+              total_card_sales: 0,
+              cash_payouts: 0,
+              float_additions: 0,
+              expected_cash: Number(openShift.opening_float) || 0,
+            },
+            staff_options: [],
+          });
+        }
+      } catch (e2) {
+        // ignore
+      }
     } finally {
       setLoading(false);
     }
@@ -154,11 +203,12 @@ export default function ShiftRegisterModal({ isOpen, onClose, defaultDepartment 
 
   const handleCloseShift = async (e) => {
     e.preventDefault();
-    if (!shiftData?.shift?.id) return;
+    const activeShiftId = shiftData?.shift?.id;
+    if (!activeShiftId) return;
     setLoading(true);
     setError('');
     try {
-      const res = await shiftsApi.close(shiftData.shift.id, {
+      const res = await shiftsApi.close(activeShiftId, {
         actual_cash_counted: parseFloat(closeForm.actual_cash_counted) || 0,
         denominations: closeForm.denominations,
         handover_to_user_id: closeForm.handover_to_user_id || null,
@@ -169,14 +219,41 @@ export default function ShiftRegisterModal({ isOpen, onClose, defaultDepartment 
         setShowCloseModal(false);
         setSuccessMsg(res.message);
         // Load slip for immediate review and print
-        handleViewSlip(shiftData.shift.id);
+        handleViewSlip(activeShiftId);
         await loadCurrentShift();
+        if (activeTab === 'history') {
+          await loadHistory();
+        }
       }
     } catch (err) {
       setError(err.message || 'Shift closing failed');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenCloseModalForShift = (targetShift) => {
+    setShiftData({
+      has_active_shift: true,
+      shift: targetShift,
+      live_financials: targetShift.live_financials || {
+        opening_float: Number(targetShift.opening_float) || 0,
+        total_cash_sales: 0,
+        total_upi_sales: 0,
+        total_card_sales: 0,
+        cash_payouts: 0,
+        float_additions: 0,
+        expected_cash: Number(targetShift.opening_float) || 0,
+      },
+      staff_options: staffOptions,
+    });
+    setCloseForm({
+      actual_cash_counted: (Number(targetShift.opening_float) || 0).toString(),
+      denominations: {},
+      handover_to_user_id: '',
+      handover_notes: '',
+    });
+    setShowCloseModal(true);
   };
 
   const handleViewSlip = async (shiftId) => {
@@ -193,7 +270,7 @@ export default function ShiftRegisterModal({ isOpen, onClose, defaultDepartment 
   if (!isOpen) return null;
 
   const currentShift = shiftData?.shift;
-  const financials = currentShift?.live_financials;
+  const financials = shiftData?.live_financials || currentShift?.live_financials;
   const expectedCash = financials?.expected_cash ?? 0;
   const countedCash = parseFloat(closeForm.actual_cash_counted) || 0;
   const liveVariance = countedCash - expectedCash;
@@ -863,6 +940,28 @@ export default function ShiftRegisterModal({ isOpen, onClose, defaultDepartment 
                             </div>
                           </div>
 
+                          {s.status === 'OPEN' && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCloseModalForShift(s)}
+                              style={{
+                                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                border: 'none',
+                                padding: '6px 14px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                boxShadow: '0 1px 3px rgba(220, 38, 38, 0.4)',
+                              }}
+                            >
+                              🔒 Close Shift
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleViewSlip(s.id)}

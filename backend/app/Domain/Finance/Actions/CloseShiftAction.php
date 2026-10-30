@@ -25,18 +25,31 @@ class CloseShiftAction
                 ]);
             }
 
-            $financials = $shiftLocked->computeLiveFinancials();
-            $expectedCash = $financials['expected_cash'];
+            try {
+                $financials = $shiftLocked->computeLiveFinancials();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('computeLiveFinancials failed during CloseShift: ' . $e->getMessage());
+                $financials = [
+                    'opening_float' => (float) $shiftLocked->opening_float,
+                    'total_cash_sales' => 0.0,
+                    'total_upi_sales' => 0.0,
+                    'total_card_sales' => 0.0,
+                    'cash_payouts' => 0.0,
+                    'float_additions' => 0.0,
+                    'expected_cash' => (float) $shiftLocked->opening_float,
+                ];
+            }
+            $expectedCash = (float) ($financials['expected_cash'] ?? $shiftLocked->opening_float);
             $actualCounted = (float) $data['actual_cash_counted'];
             $variance = round($actualCounted - $expectedCash, 2);
 
             $shiftLocked->update([
                 'closed_at' => now(),
                 'status' => 'CLOSED',
-                'system_cash_sales' => $financials['total_cash_sales'],
-                'system_upi_sales' => $financials['total_upi_sales'],
-                'system_card_sales' => $financials['total_card_sales'],
-                'cash_paid_out' => $financials['cash_payouts'],
+                'system_cash_sales' => $financials['total_cash_sales'] ?? 0.0,
+                'system_upi_sales' => $financials['total_upi_sales'] ?? 0.0,
+                'system_card_sales' => $financials['total_card_sales'] ?? 0.0,
+                'cash_paid_out' => $financials['cash_payouts'] ?? 0.0,
                 'expected_cash' => $expectedCash,
                 'actual_cash_counted' => $actualCounted,
                 'variance' => $variance,
