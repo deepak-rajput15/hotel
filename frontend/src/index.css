@@ -570,32 +570,35 @@ input:checked + .toggle-slider:before {
     min-height: auto !important;
   }
 
-  /* When printing an open modal invoice/receipt, hide all background page content */
-  body:has(.modal-overlay) .page-body > *:not(.modal-overlay),
-  body:has(.modal-overlay) .card:not(.modal-content),
-  body:has(.modal-overlay) .data-table:not(.modal-content .data-table) {
+  /* When printing an open modal invoice/receipt, hide background page content safely without hiding parent containers */
+  body:has(.modal-overlay) .page-header,
+  body:has(.modal-overlay) .card:not(.modal-content):not(.modal-content *),
+  body:has(.modal-overlay) .data-table:not(.modal-content *):not(.modal-content),
+  body:has(.modal-overlay) .kds-container,
+  body:has(.modal-overlay) .order-cart-panel {
     display: none !important;
   }
 
   /* Flatten modal overlay into seamless printable document */
   .modal-overlay {
-    position: static !important;
-    inset: auto !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    min-height: 100% !important;
     background: white !important;
     backdrop-filter: none !important;
-    padding: 0 !important;
+    padding: 10px !important;
     margin: 0 !important;
     display: block !important;
-    width: 100% !important;
-    height: auto !important;
-    z-index: auto !important;
+    z-index: 999999 !important;
   }
 
   .modal-content {
     box-shadow: none !important;
     border: 1px solid #94a3b8 !important;
     border-radius: 8px !important;
-    padding: 24px !important;
+    padding: 20px !important;
     margin: 0 auto !important;
     max-width: 100% !important;
     max-height: none !important;

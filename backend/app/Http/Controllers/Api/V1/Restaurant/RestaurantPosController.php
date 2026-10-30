@@ -68,6 +68,8 @@ class RestaurantPosController extends Controller
                     'covers' => $order->covers,
                     'customer_name' => $order->customer_name,
                     'status' => $order->status,
+                    'subtotal' => (float) $order->subtotal,
+                    'tax_amount' => (float) $order->tax_amount,
                     'grand_total' => (float) $order->grand_total,
                     'items_count' => $order->items->sum('quantity'),
                     'opened_at' => $order->created_at?->diffForHumans(),
@@ -640,7 +642,7 @@ class RestaurantPosController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Order #{$order->order_number} settled successfully via {$order->settlement_method}.",
-                'order' => $order->load(['table', 'room', 'booking.guest']),
+                'order' => $order->load(['table', 'room', 'booking.guest', 'items']),
             ]);
         });
     }

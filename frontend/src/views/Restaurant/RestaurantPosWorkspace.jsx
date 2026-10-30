@@ -257,7 +257,10 @@ export default function RestaurantPosWorkspace() {
       const res = await restaurantApi.settleOrder(showSettleModal.id, payload);
       alert(res.message || 'Order settled successfully!');
 
-      setPrintReceiptData(res.order);
+      setPrintReceiptData({
+        ...res.order,
+        items: (res.order?.items && res.order.items.length > 0) ? res.order.items : (showSettleModal.items || []),
+      });
       setShowSettleModal(null);
       setSettlementDiscount(0);
       setTransactionRef('');
@@ -267,6 +270,125 @@ export default function RestaurantPosWorkspace() {
     } finally {
       setSettling(false);
     }
+  };
+
+  // Dedicated Thermal Docket POS Receipt Printer (80mm standard)
+  const handlePrintReceipt = (receipt) => {
+    if (!receipt) return;
+    const printWindow = window.open('', '_blank', 'width=420,height=650');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    const grandTotal = Number(receipt.grand_total || 0);
+    const subtotal = receipt.subtotal != null && Number(receipt.subtotal) > 0
+      ? Number(receipt.subtotal)
+      : Math.round((grandTotal / 1.05) * 100) / 100;
+    const taxAmount = receipt.tax_amount != null && Number(receipt.tax_amount) > 0
+      ? Number(receipt.tax_amount)
+      : Math.round((grandTotal - subtotal) * 100) / 100;
+    const halfTax = (taxAmount / 2).toFixed(2);
+    const billDate = new Date(receipt.settled_at || Date.now()).toLocaleString('en-IN');
+    const tableOrRoom = receipt.table?.table_no
+      ? `Table ${receipt.table.table_no}`
+      : receipt.room?.room_number
+      ? `Room ${receipt.room.room_number}`
+      : 'Dine-In';
+
+    const itemsRows = (receipt.items && receipt.items.length > 0)
+      ? receipt.items.map(item => `
+          <div style="display:flex; justify-content:space-between; margin:4px 0; font-size:12px;">
+            <span>${item.quantity}x ${item.item_name}</span>
+            <span style="font-weight:600;">₹${Number(item.total_price || 0).toFixed(2)}</span>
+          </div>
+        `).join('')
+      : `
+          <div style="display:flex; justify-content:space-between; margin:4px 0; font-size:12px;">
+            <span>Food & Beverage Dining (${receipt.order_number})</span>
+            <span style="font-weight:600;">₹${subtotal.toFixed(2)}</span>
+          </div>
+        `;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Receipt #${receipt.order_number}</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          * { box-sizing: border-box; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+            width: 78mm;
+            margin: 0 auto;
+            padding: 8mm 4mm;
+            color: #111;
+            font-size: 12px;
+            line-height: 1.4;
+            background: #fff;
+          }
+          .center { text-align: center; }
+          .bold { font-weight: 700; }
+          .divider { border-top: 1px dashed #777; margin: 8px 0; }
+          .double-divider { border-top: 2px solid #222; margin: 8px 0; }
+          .row { display: flex; justify-content: space-between; margin: 3px 0; }
+          @media print {
+            body { width: 100%; margin: 0; padding: 4mm; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="center bold" style="font-size: 16px; text-transform: uppercase;">${currentHotel?.name || 'GrandStay Hotel'}</div>
+        <div class="center" style="font-size: 11px; color: #555; margin-top: 2px;">Restaurant & Dining POS Invoice</div>
+        <div class="center" style="font-size: 10px; color: #666;">GSTIN: 27AABCR1234D1Z2</div>
+        <div class="center" style="font-size: 11px; font-weight: 600; margin-top: 4px;">Bill #: ${receipt.order_number}</div>
+        <div class="center" style="font-size: 11px; color: #555;">${billDate} &bull; ${tableOrRoom}</div>
+
+        <div class="divider"></div>
+
+        <div>${itemsRows}</div>
+
+        <div class="divider"></div>
+
+        <div class="row"><span>Subtotal:</span><span>₹${subtotal.toFixed(2)}</span></div>
+        <div class="row"><span>CGST (2.5%):</span><span>₹${halfTax}</span></div>
+        <div class="row"><span>SGST (2.5%):</span><span>₹${halfTax}</span></div>
+
+        <div class="divider"></div>
+
+        <div class="row bold" style="font-size: 15px; margin: 6px 0;">
+          <span>Grand Total:</span>
+          <span>₹${grandTotal.toFixed(2)}</span>
+        </div>
+
+        <div class="row" style="font-size: 11px; color: #444;">
+          <span>Settlement Method:</span>
+          <strong>${receipt.settlement_method || 'PAID'}</strong>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="center" style="font-size: 11px; color: #555; margin-top: 10px;">
+          Thank you for dining with us!
+          <div style="font-size: 10px; margin-top: 2px;">Please visit again!</div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.focus();
+            window.print();
+            setTimeout(function() { window.close(); }, 750);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   // Add Table Form Submit
@@ -1584,20 +1706,32 @@ export default function RestaurantPosWorkspace() {
             </div>
 
             {/* Bill Summary */}
-            <div style={{ background: 'var(--surface-sub)', padding: '12px 16px', borderRadius: 'var(--r-sm)', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
-                <span style={{ color: 'var(--t-500)' }}>Subtotal:</span>
-                <span>{formatCurrency(showSettleModal.subtotal)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
-                <span style={{ color: 'var(--t-500)' }}>5% GST:</span>
-                <span>{formatCurrency(showSettleModal.tax_amount)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: '800', color: 'var(--brand)', borderTop: '1px solid var(--border)', paddingTop: '6px', marginTop: '6px' }}>
-                <span>Grand Total:</span>
-                <span>{formatCurrency(showSettleModal.grand_total)}</span>
-              </div>
-            </div>
+            {(() => {
+              const grandTotal = Number(showSettleModal.grand_total || 0);
+              const subtotal = showSettleModal.subtotal != null && Number(showSettleModal.subtotal) > 0
+                ? Number(showSettleModal.subtotal)
+                : Math.round((grandTotal / 1.05) * 100) / 100;
+              const taxAmount = showSettleModal.tax_amount != null && Number(showSettleModal.tax_amount) > 0
+                ? Number(showSettleModal.tax_amount)
+                : Math.round((grandTotal - subtotal) * 100) / 100;
+
+              return (
+                <div style={{ background: 'var(--surface-sub)', padding: '12px 16px', borderRadius: 'var(--r-sm)', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                    <span style={{ color: 'var(--t-500)' }}>Subtotal:</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                    <span style={{ color: 'var(--t-500)' }}>5% GST:</span>
+                    <span>{formatCurrency(taxAmount)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: '800', color: 'var(--brand)', borderTop: '1px solid var(--border)', paddingTop: '6px', marginTop: '6px' }}>
+                    <span>Grand Total:</span>
+                    <span>{formatCurrency(grandTotal)}</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Method Tabs */}
             <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--t-500)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
@@ -1830,69 +1964,101 @@ export default function RestaurantPosWorkspace() {
       )}
 
       {/* 9. Printable GST Dining Tax Invoice Modal */}
-      {printReceiptData && (
-        <div className="modal-overlay" onClick={() => setPrintReceiptData(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', padding: '24px' }}>
-            <div style={{ textAlign: 'center', borderBottom: '1px dashed var(--border)', paddingBottom: '12px', marginBottom: '12px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0 }}>{currentHotel?.name}</h3>
-              <div style={{ fontSize: '11px', color: 'var(--t-500)', marginTop: '2px' }}>
-                Restaurant & Dining POS Invoice
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--t-500)' }}>
-                GSTIN: 27AABCR1234D1Z2 &bull; Bill #: {printReceiptData.order_number}
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--t-500)' }}>
-                {new Date().toLocaleString()} &bull; {printReceiptData.table ? `Table ${printReceiptData.table.table_no}` : 'Room Service'}
-              </div>
-            </div>
+      {printReceiptData && (() => {
+        const grandTotal = Number(printReceiptData.grand_total || 0);
+        const subtotal = printReceiptData.subtotal != null && Number(printReceiptData.subtotal) > 0
+          ? Number(printReceiptData.subtotal)
+          : Math.round((grandTotal / 1.05) * 100) / 100;
+        const taxAmount = printReceiptData.tax_amount != null && Number(printReceiptData.tax_amount) > 0
+          ? Number(printReceiptData.tax_amount)
+          : Math.round((grandTotal - subtotal) * 100) / 100;
+        const halfTax = (taxAmount / 2).toFixed(2);
+        const locationLabel = printReceiptData.table?.table_no
+          ? `Table ${printReceiptData.table.table_no}`
+          : printReceiptData.room?.room_number
+          ? `Room ${printReceiptData.room.room_number}`
+          : 'Dine-In Service';
 
-            <div style={{ marginBottom: '12px' }}>
-              {printReceiptData.items?.map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                  <span>{item.quantity} x {item.item_name}</span>
-                  <span style={{ fontWeight: '600' }}>{formatCurrency(item.total_price)}</span>
+        return (
+          <div className="modal-overlay" onClick={() => setPrintReceiptData(null)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', padding: '24px' }}>
+              <div style={{ textAlign: 'center', borderBottom: '1px dashed var(--border)', paddingBottom: '12px', marginBottom: '12px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0 }}>{currentHotel?.name}</h3>
+                <div style={{ fontSize: '11px', color: 'var(--t-500)', marginTop: '2px' }}>
+                  Restaurant & Dining POS Invoice
                 </div>
-              ))}
-            </div>
+                <div style={{ fontSize: '11px', color: 'var(--t-500)' }}>
+                  GSTIN: 27AABCR1234D1Z2 &bull; Bill #: {printReceiptData.order_number}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--t-500)' }}>
+                  {new Date().toLocaleString()} &bull; {locationLabel}
+                </div>
+              </div>
 
-            <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '8px', fontSize: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                <span>Subtotal:</span>
-                <span>{formatCurrency(printReceiptData.subtotal)}</span>
+              <div style={{ marginBottom: '12px' }}>
+                {printReceiptData.items && printReceiptData.items.length > 0 ? (
+                  printReceiptData.items.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                      <span>{item.quantity} x {item.item_name}</span>
+                      <span style={{ fontWeight: '600' }}>{formatCurrency(item.total_price)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px', fontStyle: 'italic', color: 'var(--t-600)' }}>
+                    <span>Food & Beverage Dining ({printReceiptData.order_number})</span>
+                    <span style={{ fontWeight: '600' }}>{formatCurrency(subtotal)}</span>
+                  </div>
+                )}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                <span>CGST (2.5%):</span>
-                <span>{formatCurrency(Number(printReceiptData.tax_amount) / 2)}</span>
+
+              <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '8px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                  <span>Subtotal:</span>
+                  <span>{formatCurrency(subtotal)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                  <span>CGST (2.5%):</span>
+                  <span>{formatCurrency(halfTax)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                  <span>SGST (2.5%):</span>
+                  <span>{formatCurrency(halfTax)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: '800', marginTop: '6px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
+                  <span>Grand Total:</span>
+                  <span>{formatCurrency(grandTotal)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--t-500)', marginTop: '4px' }}>
+                  <span>Paid via:</span>
+                  <strong>{printReceiptData.settlement_method || 'SETTLED'}</strong>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                <span>SGST (2.5%):</span>
-                <span>{formatCurrency(Number(printReceiptData.tax_amount) / 2)}</span>
+
+              <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '11px', color: 'var(--t-500)', borderTop: '1px dashed var(--border)', paddingTop: '10px' }}>
+                Thank you for dining with us!
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: '800', marginTop: '6px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
-                <span>Grand Total:</span>
-                <span>{formatCurrency(printReceiptData.grand_total)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--t-500)', marginTop: '4px' }}>
-                <span>Paid via:</span>
-                <strong>{printReceiptData.settlement_method}</strong>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                <button
+                  onClick={() => handlePrintReceipt(printReceiptData)}
+                  className="btn btn-primary"
+                  style={{ flex: 1, fontSize: '12.5px', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <Printer size={14} />
+                  Print Thermal Receipt
+                </button>
+                <button
+                  onClick={() => setPrintReceiptData(null)}
+                  className="btn btn-outline"
+                  style={{ fontSize: '12.5px', padding: '8px 16px' }}
+                >
+                  Close
+                </button>
               </div>
             </div>
-
-            <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '11px', color: 'var(--t-500)', borderTop: '1px dashed var(--border)', paddingTop: '10px' }}>
-              Thank you for dining with us!
-            </div>
-
-            <button
-              onClick={() => window.print()}
-              className="btn btn-primary"
-              style={{ width: '100%', marginTop: '14px', fontSize: '12.5px', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            >
-              <Printer size={14} />
-              Print Invoice
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Restaurant Shift Handover & Cash Drawer Modal */}
       <ShiftRegisterModal
