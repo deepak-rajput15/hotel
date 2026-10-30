@@ -1,10 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // In-memory fallback in case native module is unavailable
 const memoryStore = new Map();
 
 export const Storage = {
   async getItem(key) {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const val = window.localStorage.getItem(key);
+        if (val !== null) return val;
+      } catch (e) {
+        // fallback to memory
+      }
+    }
     try {
       if (AsyncStorage && typeof AsyncStorage.getItem === 'function') {
         const value = await AsyncStorage.getItem(key);
@@ -19,6 +28,14 @@ export const Storage = {
   async setItem(key, value) {
     const stringVal = typeof value === 'string' ? value : JSON.stringify(value);
     memoryStore.set(key, stringVal);
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(key, stringVal);
+        return;
+      } catch (e) {
+        // fallback to memory
+      }
+    }
     try {
       if (AsyncStorage && typeof AsyncStorage.setItem === 'function') {
         await AsyncStorage.setItem(key, stringVal);
@@ -30,6 +47,14 @@ export const Storage = {
 
   async removeItem(key) {
     memoryStore.delete(key);
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem(key);
+        return;
+      } catch (e) {
+        // fallback
+      }
+    }
     try {
       if (AsyncStorage && typeof AsyncStorage.removeItem === 'function') {
         await AsyncStorage.removeItem(key);
@@ -41,6 +66,14 @@ export const Storage = {
 
   async clear() {
     memoryStore.clear();
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.clear();
+        return;
+      } catch (e) {
+        // fallback
+      }
+    }
     try {
       if (AsyncStorage && typeof AsyncStorage.clear === 'function') {
         await AsyncStorage.clear();
