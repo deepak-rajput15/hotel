@@ -124,3 +124,4 @@ class LostAndFoundActionTest extends TestCase
         $this->assertEquals('Perishable food item spoiled after 48h', $disposed->disposal_reason);
     }
 }
+

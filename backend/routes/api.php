@@ -132,7 +132,7 @@ Route::prefix('v1')->group(function () {
             });
 
             // Kitchen Display System (KDS) routes (Live KOTs, Preparation Queue, Item Status Updates)
-            Route::prefix('kitchen')->middleware('module:kitchen')->group(function () {
+            Route::prefix('kitchen')->middleware('tenant', 'module:kitchen')->group(function () {
                 Route::get('/kots', [KitchenKdsController::class, 'liveKots']);
                 Route::get('/summary', [KitchenKdsController::class, 'summary']);
                 Route::put('/items/{itemId}/status', [KitchenKdsController::class, 'updateItemStatus']);
@@ -140,7 +140,7 @@ Route::prefix('v1')->group(function () {
             });
 
             // Reports & Analytics routes (Occupancy, Revenue, Guest Ledger Night Audit, Inventory, CSV Export)
-            Route::prefix('reports')->group(function () {
+            Route::prefix('reports')->middleware('tenant')->group(function () {
                 Route::get('/overview', [ReportsController::class, 'overview']);
                 Route::get('/guest-ledger', [ReportsController::class, 'guestLedger']);
                 Route::get('/inventory', [ReportsController::class, 'inventory']);
@@ -148,7 +148,7 @@ Route::prefix('v1')->group(function () {
             });
 
             // Shift Handover & Cash Drawer Register routes
-            Route::prefix('shifts')->group(function () {
+            Route::prefix('shifts')->middleware('tenant')->group(function () {
                 Route::get('/current', [ShiftHandoverController::class, 'getCurrentShift']);
                 Route::post('/open', [ShiftHandoverController::class, 'openShift']);
                 Route::post('/{shiftId}/cash-transaction', [ShiftHandoverController::class, 'recordCashTransaction']);
@@ -158,7 +158,7 @@ Route::prefix('v1')->group(function () {
             });
 
             // WhatsApp Automated Communication Engine routes
-            Route::prefix('whatsapp')->group(function () {
+            Route::prefix('whatsapp')->middleware('tenant')->group(function () {
                 Route::get('/logs', [WhatsAppController::class, 'logs']);
                 Route::post('/resend', [WhatsAppController::class, 'resend']);
                 Route::post('/daily-summary', [WhatsAppController::class, 'sendDailySummary']);
@@ -174,7 +174,7 @@ Route::prefix('v1')->group(function () {
             });
 
             // Hotel Property UPI & Payment Settings
-            Route::prefix('hotel/payment-settings')->group(function () {
+            Route::prefix('hotel/payment-settings')->middleware('tenant')->group(function () {
                 Route::get('/', [HotelPaymentSettingController::class, 'getSettings']);
                 Route::put('/', [HotelPaymentSettingController::class, 'updateSettings']);
             });

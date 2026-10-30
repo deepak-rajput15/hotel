@@ -2,37 +2,54 @@
 
 namespace App\Http\Controllers\Api\V1\Finance;
 
-use App\Domain\Finance\Models\CashDrawerTransaction;
+use App\Domain\Finance\Contracts\ShiftHandoverServiceInterface;
 use App\Domain\Finance\Models\ShiftHandover;
 use App\Domain\Tenancy\Models\Hotel;
 use App\Domain\Tenancy\Models\UserHotelAccess;
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Http\Requests\Api\V1\Finance\CloseShiftRequest;
+use App\Http\Requests\Api\V1\Finance\OpenShiftRequest;
+use App\Http\Requests\Api\V1\Finance\RecordCashTransactionRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class ShiftHandoverController extends Controller
 {
+    public function __construct(
+        protected ShiftHandoverServiceInterface $shiftService
+    ) {}
+
     /**
      * Resolve hotel model from request header or hotel_id query/param.
      */
     protected function resolveHotel(Request $request): ?Hotel
     {
-        $hotelId = $request->header('X-Hotel-Context') ?? $request->get('hotel_id');
+        $hotel = $request->attributes->get('current_hotel');
+        if ($hotel) {
+            return $hotel;
+        }
+
+        $hotelId = $request->header('X-Hotel-Context') ?? $request->header('X-Hotel-ID') ?? $request->get('hotel_id');
+
+        $user = $request->user();
+        if (!$user) {
+            return null;
+        }
 
         if (!$hotelId) {
-            $user = $request->user();
-            $assignedHotel = $user->hotels()->first();
-            return $assignedHotel;
+            return $user->hotels()->first();
         }
 
-        if (Str::isUuid($hotelId)) {
-            return Hotel::where('id', $hotelId)->first();
+        $target = Str::isUuid($hotelId)
+            ? Hotel::where('id', $hotelId)->first()
+            : Hotel::where('hotel_code', $hotelId)->first();
+
+        if ($target && ($user->isPlatformAdmin() || $user->hasAccessToHotel($target->id))) {
+            return $target;
         }
 
-        return Hotel::where('hotel_code', $hotelId)->first();
+        return null;
     }
 
     /**
@@ -55,7 +72,6 @@ class ShiftHandoverController extends Controller
             ->latest('opened_at')
             ->first();
 
-        // Eligible staff list for handover options
         $eligibleStaff = UserHotelAccess::where('hotel_id', $hotel->id)
             ->with(['user:id,name,email', 'role:id,name,display_name'])
             ->get()
@@ -97,62 +113,26 @@ class ShiftHandoverController extends Controller
     /**
      * Open a new shift with opening float.
      */
-    public function openShift(Request $request): JsonResponse
+    public function openShift(OpenShiftRequest $request): JsonResponse
     {
         $hotel = $this->resolveHotel($request);
         if (!$hotel) {
             return response()->json(['success' => false, 'message' => 'Hotel context required'], 400);
         }
 
-        $validated = $request->validate([
-            'department' => 'required|in:FRONT_DESK,RESTAURANT_POS,COMBINED',
-            'shift_type' => 'required|in:MORNING,EVENING,NIGHT,GENERAL',
-            'opening_float' => 'required|numeric|min:0',
-            'opening_notes' => 'nullable|string|max:500',
-        ]);
-
-        // Check if there is already an open shift in this department
-        $existing = ShiftHandover::withoutGlobalScopes()
-            ->where('hotel_id', $hotel->id)
-            ->where('department', $validated['department'])
-            ->where('status', 'OPEN')
-            ->first();
-
-        if ($existing) {
-            return response()->json([
-                'success' => false,
-                'message' => "A {$validated['department']} shift ({$existing->shift_code}) is already OPEN. Please close it before opening a new shift.",
-            ], 422);
-        }
-
-        $user = $request->user();
-        $dateStr = Carbon::now()->format('Ymd');
-        $randomSeq = strtoupper(Str::random(4));
-        $shiftCode = "SFT-{$dateStr}-{$randomSeq}";
-
-        $shift = ShiftHandover::create([
-            'hotel_id' => $hotel->id,
-            'shift_code' => $shiftCode,
-            'department' => $validated['department'],
-            'shift_type' => $validated['shift_type'],
-            'user_id' => $user->id,
-            'status' => 'OPEN',
-            'opened_at' => now(),
-            'opening_float' => $validated['opening_float'],
-            'opening_notes' => $validated['opening_notes'] ?? null,
-        ]);
+        $shift = $this->shiftService->openShift($hotel, $request->validated(), $request->user());
 
         return response()->json([
             'success' => true,
             'message' => "Shift {$shift->shift_code} opened successfully with float ₹{$shift->opening_float}.",
-            'shift' => $shift->load(['user:id,name,email']),
+            'shift' => $shift,
         ], 201);
     }
 
     /**
      * Add a mid-shift cash transaction (Petty Cash payout, float addition, cash drop).
      */
-    public function recordCashTransaction(Request $request, string $shiftId): JsonResponse
+    public function recordCashTransaction(RecordCashTransactionRequest $request, string $shiftId): JsonResponse
     {
         $hotel = $this->resolveHotel($request);
         if (!$hotel) {
@@ -168,45 +148,21 @@ class ShiftHandoverController extends Controller
             return response()->json(['success' => false, 'message' => 'Shift not found'], 404);
         }
 
-        if ($shift->status !== 'OPEN') {
-            return response()->json(['success' => false, 'message' => 'Cannot add transactions to a CLOSED shift'], 422);
-        }
-
-        $validated = $request->validate([
-            'transaction_type' => 'required|in:PAYOUT,FLOAT_ADDITION,CASH_DROP',
-            'amount' => 'required|numeric|min:1',
-            'reason' => 'required|string|max:255',
-            'recipient_name' => 'nullable|string|max:100',
-            'receipt_voucher_no' => 'nullable|string|max:50',
-        ]);
-
-        $user = $request->user();
-
-        $transaction = CashDrawerTransaction::create([
-            'shift_handover_id' => $shift->id,
-            'hotel_id' => $hotel->id,
-            'transaction_type' => $validated['transaction_type'],
-            'amount' => $validated['amount'],
-            'reason' => $validated['reason'],
-            'recipient_name' => $validated['recipient_name'] ?? null,
-            'receipt_voucher_no' => $validated['receipt_voucher_no'] ?? null,
-            'created_by' => $user->id,
-        ]);
-
-        $liveFinancials = $shift->computeLiveFinancials();
+        $result = $this->shiftService->recordCashTransaction($shift, $request->validated(), $request->user());
+        $tx = $result['transaction'];
 
         return response()->json([
             'success' => true,
-            'message' => "Cash transaction of ₹{$transaction->amount} ({$transaction->transaction_type}) recorded.",
-            'transaction' => $transaction->load('creator:id,name'),
-            'live_financials' => $liveFinancials,
+            'message' => "Cash transaction of ₹{$tx->amount} ({$tx->transaction_type}) recorded.",
+            'transaction' => $tx,
+            'live_financials' => $result['live_financials'],
         ], 201);
     }
 
     /**
      * Close shift, verify physical count, compute variance, and handover.
      */
-    public function closeShift(Request $request, string $shiftId): JsonResponse
+    public function closeShift(CloseShiftRequest $request, string $shiftId): JsonResponse
     {
         $hotel = $this->resolveHotel($request);
         if (!$hotel) {
@@ -222,51 +178,13 @@ class ShiftHandoverController extends Controller
             return response()->json(['success' => false, 'message' => 'Shift not found'], 404);
         }
 
-        if ($shift->status !== 'OPEN') {
-            return response()->json(['success' => false, 'message' => 'Shift is already CLOSED'], 422);
-        }
-
-        $validated = $request->validate([
-            'actual_cash_counted' => 'required|numeric|min:0',
-            'denominations' => 'nullable|array',
-            'handover_to_user_id' => 'nullable|exists:users,id',
-            'handover_notes' => 'nullable|string|max:1000',
-        ]);
-
-        $financials = $shift->computeLiveFinancials();
-        $expectedCash = $financials['expected_cash'];
-        $actualCounted = (float) $validated['actual_cash_counted'];
-        $variance = round($actualCounted - $expectedCash, 2);
-
-        $shift->update([
-            'closed_at' => now(),
-            'status' => 'CLOSED',
-            'system_cash_sales' => $financials['total_cash_sales'],
-            'system_upi_sales' => $financials['total_upi_sales'],
-            'system_card_sales' => $financials['total_card_sales'],
-            'cash_paid_out' => $financials['cash_payouts'],
-            'expected_cash' => $expectedCash,
-            'actual_cash_counted' => $actualCounted,
-            'variance' => $variance,
-            'denominations' => $validated['denominations'] ?? null,
-            'handover_to_user_id' => $validated['handover_to_user_id'] ?? null,
-            'handover_notes' => $validated['handover_notes'] ?? null,
-        ]);
-
-        $statusText = $variance === 0.0
-            ? 'PERFECT MATCH'
-            : ($variance > 0 ? "OVERAGE (+₹{$variance})" : "SHORTAGE (-₹" . abs($variance) . ")");
+        $result = $this->shiftService->closeShift($shift, $request->validated(), $request->user());
 
         return response()->json([
             'success' => true,
-            'message' => "Shift {$shift->shift_code} closed successfully. Status: {$statusText}.",
-            'shift' => $shift->fresh(['user:id,name,email', 'handoverToUser:id,name,email', 'cashTransactions']),
-            'variance_summary' => [
-                'expected_cash' => $expectedCash,
-                'actual_cash_counted' => $actualCounted,
-                'variance' => $variance,
-                'status' => $variance === 0.0 ? 'BALANCED' : ($variance > 0 ? 'OVERAGE' : 'SHORTAGE'),
-            ],
+            'message' => "Shift {$result['shift']->shift_code} closed successfully. Status: {$result['status_text']}.",
+            'shift' => $result['shift'],
+            'variance_summary' => $result['variance_summary'],
         ]);
     }
 
@@ -358,4 +276,3 @@ class ShiftHandoverController extends Controller
         ]);
     }
 }
-

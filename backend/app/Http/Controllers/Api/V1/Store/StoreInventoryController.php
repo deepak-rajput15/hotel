@@ -2,17 +2,25 @@
 
 namespace App\Http\Controllers\Api\V1\Store;
 
-use App\Domain\Purchase\Models\Supplier;
+use App\Domain\Store\Contracts\StoreInventoryServiceInterface;
 use App\Domain\Store\Models\Product;
 use App\Domain\Tenancy\Models\Hotel;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Store\AdjustStockRequest;
+use App\Http\Requests\Api\V1\Store\StoreProductRequest;
+use App\Http\Requests\Api\V1\Store\StoreSupplierRequest;
+use App\Http\Requests\Api\V1\Store\UpdateProductRequest;
+use App\Http\Requests\Api\V1\Store\UpdateStockBatchRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class StoreInventoryController extends Controller
 {
+    public function __construct(
+        protected StoreInventoryServiceInterface $storeService
+    ) {}
+
     /**
      * Resolve hotel context from request attributes.
      */
@@ -66,22 +74,18 @@ class StoreInventoryController extends Controller
 
         $query = $hotel->products()->with('supplier')->latest();
 
-        // Filter by category
         if ($request->filled('category') && $request->query('category') !== 'ALL') {
             $query->where('category', $request->query('category'));
         }
 
-        // Filter by status (Active, Inactive)
         if ($request->filled('status') && $request->query('status') !== 'ALL') {
             $query->where('status', $request->query('status'));
         }
 
-        // Filter by low stock flag
         if ($request->boolean('low_stock')) {
             $query->whereColumn('current_stock', '<=', 'minimum_stock_qty');
         }
 
-        // Search by name or code
         if ($request->filled('search')) {
             $term = '%' . $request->query('search') . '%';
             $query->where(function ($q) use ($term) {
@@ -91,13 +95,11 @@ class StoreInventoryController extends Controller
             });
         }
 
-        // Calculate summary metrics across the hotel inventory
         $totalProducts = $hotel->products()->count();
         $lowStockCount = $hotel->products()->whereColumn('current_stock', '<=', 'minimum_stock_qty')->count();
         $totalStockValue = $hotel->products()->select(DB::raw('SUM(current_stock * rate) as val'))->value('val') ?? 0;
         $activeSuppliersCount = $hotel->suppliers()->where('status', 'Active')->count();
 
-        // Compute expiry status for all products for metrics
         $allProducts = $hotel->products()->get();
         $expiredCount = 0;
         $expiringSoonCount = 0;
@@ -122,7 +124,6 @@ class StoreInventoryController extends Controller
             return $product;
         });
 
-        // Filter by expiry status if requested
         if ($request->filled('expiry_status') && $request->query('expiry_status') !== 'ALL') {
             $target = $request->query('expiry_status');
             $products = $products->filter(function ($p) use ($target) {
@@ -152,66 +153,12 @@ class StoreInventoryController extends Controller
     }
 
     /**
-     * Create a new inventory product from Book1.xlsx specification.
+     * Create a new inventory product.
      */
-    public function storeProduct(Request $request): JsonResponse
+    public function storeProduct(StoreProductRequest $request): JsonResponse
     {
         $hotel = $this->getHotel($request);
-
-        $validated = $request->validate([
-            'category' => 'required|string|max:100',
-            'name' => 'required|string|max:150',
-            'product_code' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('products', 'product_code')->where('hotel_id', $hotel->id),
-            ],
-            'description' => 'nullable|string',
-            'unit' => 'required|string|max:30',
-            'expiry_period' => 'nullable|string|max:20', // MM/yyyy
-            'rate' => 'required|numeric|min:0',
-            'gst_percentage' => 'nullable|numeric|min:0|max:100',
-            'opening_stock' => 'required|numeric|min:0',
-            'minimum_stock_qty' => 'nullable|numeric|min:0',
-            'status' => 'nullable|string|in:Active,Inactive',
-            'supplier_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('suppliers', 'id')->where('hotel_id', $hotel->id),
-            ],
-        ]);
-
-        $initialBatches = [];
-        if ((float) $validated['opening_stock'] > 0) {
-            $initialBatches[] = [
-                'batch_no' => 'BAT-' . strtoupper(substr(uniqid(), -5)),
-                'quantity' => (float) $validated['opening_stock'],
-                'unit' => $validated['unit'],
-                'expiry_period' => $validated['expiry_period'] ?? null,
-                'received_at' => now()->toIso8601String(),
-                'notes' => 'Opening Stock',
-            ];
-        }
-
-        $product = $hotel->products()->create([
-            'supplier_id' => $validated['supplier_id'] ?? null,
-            'category' => $validated['category'],
-            'name' => $validated['name'],
-            'product_code' => $validated['product_code'],
-            'description' => $validated['description'] ?? null,
-            'unit' => $validated['unit'],
-            'expiry_period' => $validated['expiry_period'] ?? null,
-            'rate' => $validated['rate'],
-            'gst_percentage' => $validated['gst_percentage'] ?? 0.00,
-            'opening_stock' => $validated['opening_stock'],
-            'current_stock' => $validated['opening_stock'],
-            'minimum_stock_qty' => $validated['minimum_stock_qty'] ?? 0.00,
-            'batches' => $initialBatches,
-            'status' => $validated['status'] ?? 'Active',
-        ]);
-
-        $product->load('supplier');
+        $product = $this->storeService->createProduct($hotel, $request->validated());
 
         return response()->json([
             'success' => true,
@@ -223,67 +170,11 @@ class StoreInventoryController extends Controller
     /**
      * Update an existing product.
      */
-    public function updateProduct(Request $request, string $id): JsonResponse
+    public function updateProduct(UpdateProductRequest $request, string $id): JsonResponse
     {
         $hotel = $this->getHotel($request);
         $product = $hotel->products()->findOrFail($id);
-
-        $validated = $request->validate([
-            'category' => 'sometimes|required|string|max:100',
-            'name' => 'sometimes|required|string|max:150',
-            'product_code' => [
-                'sometimes',
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('products', 'product_code')->where('hotel_id', $hotel->id)->ignore($product->id),
-            ],
-            'description' => 'nullable|string',
-            'unit' => 'sometimes|required|string|max:30',
-            'expiry_period' => 'nullable|string|max:20',
-            'rate' => 'sometimes|required|numeric|min:0',
-            'gst_percentage' => 'nullable|numeric|min:0|max:100',
-            'minimum_stock_qty' => 'nullable|numeric|min:0',
-            'status' => 'nullable|string|in:Active,Inactive',
-            'supplier_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('suppliers', 'id')->where('hotel_id', $hotel->id),
-            ],
-        ]);
-
-        $oldExpiry = $product->expiry_period;
-        $product->update($validated);
-
-        // If expiry_period changed, synchronize existing batches that belonged to the initial/existing stock
-        if (isset($validated['expiry_period']) && $validated['expiry_period'] !== $oldExpiry) {
-            $batches = is_array($product->batches) ? $product->batches : [];
-            $newExpiry = $validated['expiry_period'];
-            $modified = false;
-
-            foreach ($batches as &$b) {
-                if (($b['expiry_period'] ?? '') === $oldExpiry || ($b['notes'] ?? '') === 'Existing Stock' || ($b['notes'] ?? '') === 'Initial Stock' || ($b['notes'] ?? '') === 'Opening Stock') {
-                    $b['expiry_period'] = $newExpiry;
-                    $modified = true;
-                }
-            }
-            unset($b);
-
-            if ($modified) {
-                $product->batches = $batches;
-                $product->save();
-            }
-        }
-
-        $product->load('supplier');
-
-        $expiryDetails = $product->computeExpiryDetails();
-        $product->expiry_status = $expiryDetails['status'];
-        $product->days_until_expiry = $expiryDetails['days_remaining'];
-        $product->has_expired_batch = $expiryDetails['has_expired_batch'];
-        $product->has_expiring_soon_batch = $expiryDetails['has_expiring_soon_batch'];
-        $product->oldest_expiring_batch = $expiryDetails['oldest_expiring_batch'];
-        $product->active_batches = $expiryDetails['batches'];
+        $product = $this->storeService->updateProduct($product, $request->validated());
 
         return response()->json([
             'success' => true,
@@ -293,214 +184,41 @@ class StoreInventoryController extends Controller
     }
 
     /**
-     * Update an individual stock batch (e.g. correct expiry date or notes).
+     * Update an individual stock batch.
      */
-    public function updateBatch(Request $request, string $productId, string $batchNo): JsonResponse
+    public function updateBatch(UpdateStockBatchRequest $request, string $productId, string $batchNo): JsonResponse
     {
         $hotel = $this->getHotel($request);
         $this->authorizeInventoryManagement($request);
 
-        $validated = $request->validate([
-            'expiry_period' => 'required|string|max:20',
-            'notes' => 'nullable|string|max:255',
-        ]);
-
         $product = $hotel->products()->findOrFail($productId);
-        $batches = is_array($product->batches) ? $product->batches : [];
-        $found = false;
-
-        foreach ($batches as &$b) {
-            if (($b['batch_no'] ?? '') === $batchNo) {
-                $b['expiry_period'] = $validated['expiry_period'];
-                if ($request->has('notes')) {
-                    $b['notes'] = $validated['notes'];
-                }
-                $found = true;
-                break;
-            }
-        }
-        unset($b);
-
-        if (!$found) {
-            return response()->json([
-                'success' => false,
-                'message' => "Batch '{$batchNo}' not found on product '{$product->name}'.",
-            ], 404);
-        }
-
-        // Keep product expiry_period in sync with earliest active batch
-        $earliestExpiry = $validated['expiry_period'];
-        $earliestTimestamp = null;
-        foreach ($batches as $b) {
-            $p = $b['expiry_period'] ?? null;
-            $d = Product::parseExpiryDate($p);
-            if ($d && ($earliestTimestamp === null || $d->timestamp < $earliestTimestamp)) {
-                $earliestTimestamp = $d->timestamp;
-                $earliestExpiry = $p;
-            }
-        }
-        if ($earliestExpiry) {
-            $product->expiry_period = $earliestExpiry;
-        }
-
-        $product->batches = $batches;
-        $product->save();
-
-        $expiryDetails = $product->computeExpiryDetails();
-        $product->expiry_status = $expiryDetails['status'];
-        $product->days_until_expiry = $expiryDetails['days_remaining'];
-        $product->has_expired_batch = $expiryDetails['has_expired_batch'];
-        $product->has_expiring_soon_batch = $expiryDetails['has_expiring_soon_batch'];
-        $product->oldest_expiring_batch = $expiryDetails['oldest_expiring_batch'];
-        $product->active_batches = $expiryDetails['batches'];
+        $product = $this->storeService->updateBatch($product, $batchNo, $request->validated());
 
         return response()->json([
             'success' => true,
-            'message' => "Batch '{$batchNo}' expiry updated to '{$validated['expiry_period']}'.",
+            'message' => "Batch '{$batchNo}' expiry updated to '{$request->validated('expiry_period')}'.",
             'product' => $product,
         ]);
     }
 
     /**
-     * Adjust product stock level (e.g. GRN received, Kitchen consumption, Spoilage, Audit).
+     * Adjust product stock level.
      */
-    public function adjustStock(Request $request, string $id): JsonResponse
+    public function adjustStock(AdjustStockRequest $request, string $id): JsonResponse
     {
         $hotel = $this->getHotel($request);
         $this->authorizeInventoryManagement($request);
 
-        if (!$request->has('type') && $request->has('operation')) {
-            $request->merge(['type' => $request->input('operation')]);
-        }
+        $result = $this->storeService->adjustStock($hotel, $id, $request->validated(), $request->user());
+        $product = $result['product'];
+        $adjustment = $result['adjustment'];
 
-        $validated = $request->validate([
-            'type' => 'required|in:ADD,SUBTRACT,SET',
-            'quantity' => 'required|numeric|min:0.01',
-            'reason' => 'required|string|max:150', // e.g. 'Vendor Delivery GRN', 'Kitchen Requisition', 'Spoilage/Waste', 'Physical Audit'
-            'notes' => 'nullable|string|max:255',
-            'batch_no' => 'nullable|string|max:50',
-            'expiry_period' => 'nullable|string|max:20',
+        return response()->json([
+            'success' => true,
+            'message' => "Stock adjusted for '{$product->name}'. Previous: {$adjustment['old_stock']} {$product->unit}, Current: {$adjustment['new_stock']} {$product->unit}.",
+            'product' => $product,
+            'adjustment' => $adjustment,
         ]);
-
-        return DB::transaction(function () use ($hotel, $id, $validated) {
-            $product = $hotel->products()->where('id', $id)->lockForUpdate()->firstOrFail();
-
-            $oldStock = (float) $product->current_stock;
-            $qty = (float) $validated['quantity'];
-            $batches = is_array($product->batches) ? $product->batches : [];
-
-            if ($validated['type'] === 'ADD') {
-                $newStock = $oldStock + $qty;
-
-                // If batches was empty but we had stock, seed existing stock batch
-                if (empty($batches) && $oldStock > 0) {
-                    $batches[] = [
-                        'batch_no' => 'BAT-PREV-01',
-                        'quantity' => $oldStock,
-                        'unit' => $product->unit,
-                        'expiry_period' => $product->expiry_period,
-                        'received_at' => $product->created_at?->toIso8601String(),
-                        'notes' => 'Existing Stock',
-                    ];
-                }
-
-                $batchNo = !empty($validated['batch_no']) ? $validated['batch_no'] : ('BAT-' . strtoupper(substr(uniqid(), -6)));
-                $batchExpiry = !empty($validated['expiry_period']) ? $validated['expiry_period'] : $product->expiry_period;
-
-                $batches[] = [
-                    'batch_no' => $batchNo,
-                    'quantity' => $qty,
-                    'unit' => $product->unit,
-                    'expiry_period' => $batchExpiry,
-                    'received_at' => now()->toIso8601String(),
-                    'notes' => $validated['notes'] ?? $validated['reason'],
-                ];
-            } elseif ($validated['type'] === 'SUBTRACT') {
-                if ($oldStock < $qty) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Cannot subtract {$qty} {$product->unit}. Current stock is only {$oldStock} {$product->unit}.",
-                    ], 422);
-                }
-                $newStock = $oldStock - $qty;
-
-                // If specific batch requested
-                if (!empty($validated['batch_no'])) {
-                    foreach ($batches as &$b) {
-                        if (($b['batch_no'] ?? '') === $validated['batch_no']) {
-                            $bQty = (float) ($b['quantity'] ?? 0);
-                            $b['quantity'] = max(0, round($bQty - $qty, 2));
-                            break;
-                        }
-                    }
-                    unset($b);
-                } else {
-                    // FEFO deduction: First Expired, First Out
-                    usort($batches, function ($a, $b) {
-                        $tA = Product::parseExpiryDate($a['expiry_period'] ?? null)?->timestamp ?? 9999999999;
-                        $tB = Product::parseExpiryDate($b['expiry_period'] ?? null)?->timestamp ?? 9999999999;
-                        return $tA <=> $tB;
-                    });
-
-                    $rem = $qty;
-                    foreach ($batches as &$b) {
-                        if ($rem <= 0) break;
-                        $bQty = (float) ($b['quantity'] ?? 0);
-                        if ($bQty <= 0) continue;
-                        if ($bQty <= $rem) {
-                            $rem -= $bQty;
-                            $b['quantity'] = 0;
-                        } else {
-                            $b['quantity'] = round($bQty - $rem, 2);
-                            $rem = 0;
-                        }
-                    }
-                    unset($b);
-                }
-
-                // Filter out 0 qty batches
-                $batches = array_values(array_filter($batches, fn($b) => (float)($b['quantity'] ?? 0) > 0));
-            } else {
-                $newStock = $qty;
-                $batchNo = !empty($validated['batch_no']) ? $validated['batch_no'] : ('BAT-AUDIT-' . strtoupper(substr(uniqid(), -4)));
-                $batches = [
-                    [
-                        'batch_no' => $batchNo,
-                        'quantity' => $newStock,
-                        'unit' => $product->unit,
-                        'expiry_period' => !empty($validated['expiry_period']) ? $validated['expiry_period'] : $product->expiry_period,
-                        'received_at' => now()->toIso8601String(),
-                        'notes' => 'Physical Stock Audit / Reset',
-                    ]
-                ];
-            }
-
-            $product->current_stock = $newStock;
-            $product->batches = $batches;
-            $product->save();
-
-            $expiryDetails = $product->computeExpiryDetails();
-            $product->expiry_status = $expiryDetails['status'];
-            $product->days_until_expiry = $expiryDetails['days_remaining'];
-            $product->has_expired_batch = $expiryDetails['has_expired_batch'];
-            $product->has_expiring_soon_batch = $expiryDetails['has_expiring_soon_batch'];
-            $product->oldest_expiring_batch = $expiryDetails['oldest_expiring_batch'];
-            $product->active_batches = $expiryDetails['batches'];
-
-            return response()->json([
-                'success' => true,
-                'message' => "Stock adjusted for '{$product->name}'. Previous: {$oldStock} {$product->unit}, Current: {$newStock} {$product->unit}.",
-                'product' => $product,
-                'adjustment' => [
-                    'old_stock' => $oldStock,
-                    'new_stock' => $newStock,
-                    'type' => $validated['type'],
-                    'quantity' => $qty,
-                    'reason' => $validated['reason'],
-                    'notes' => $validated['notes'] ?? null,
-                ],
-            ]);
-        });
     }
 
     /**
@@ -522,35 +240,12 @@ class StoreInventoryController extends Controller
     }
 
     /**
-     * Create a new supplier from Book1.xlsx specification.
+     * Create a new supplier.
      */
-    public function storeSupplier(Request $request): JsonResponse
+    public function storeSupplier(StoreSupplierRequest $request): JsonResponse
     {
         $hotel = $this->getHotel($request);
-
-        $validated = $request->validate([
-            'firm_name' => 'required|string|max:150',
-            'address' => 'nullable|string',
-            'contact_person' => 'nullable|string|max:100',
-            'mobile' => 'required|string|max:30',
-            'email' => 'nullable|email|max:150',
-            'gst_no' => 'nullable|string|max:30',
-            'pan_no' => 'nullable|string|max:30',
-            'aadhar_no' => 'nullable|string|max:30',
-            'status' => 'nullable|string|in:Active,Inactive',
-        ]);
-
-        $supplier = $hotel->suppliers()->create([
-            'firm_name' => $validated['firm_name'],
-            'address' => $validated['address'] ?? null,
-            'contact_person' => $validated['contact_person'] ?? null,
-            'mobile' => $validated['mobile'],
-            'email' => $validated['email'] ?? null,
-            'gst_no' => $validated['gst_no'] ?? null,
-            'pan_no' => $validated['pan_no'] ?? null,
-            'aadhar_no' => $validated['aadhar_no'] ?? null,
-            'status' => $validated['status'] ?? 'Active',
-        ]);
+        $supplier = $this->storeService->createSupplier($hotel, $request->validated());
 
         return response()->json([
             'success' => true,

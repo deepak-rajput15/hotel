@@ -20,3 +20,4 @@ class DisposeLostItemRequest extends FormRequest
         ];
     }
 }
+

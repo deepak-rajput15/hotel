@@ -172,6 +172,43 @@ class FrontOfficeTest extends TestCase
         $this->assertEquals('DIRTY', $booking->room->fresh()->status);
     }
 
+    public function test_cannot_record_payment_exceeding_folio_balance(): void
+    {
+        $hotel = Hotel::where('hotel_code', 'HTL-1001')->first();
+        $frontDeskStaff = User::where('email', 'frontdesk.priya@apexhospitality.com')->first();
+        $room = $hotel->rooms()->where('status', 'AVAILABLE')->first();
+
+        $checkInRes = $this->actingAs($frontDeskStaff)
+            ->withHeader('X-Hotel-Context', $hotel->id)
+            ->postJson('/api/v1/front-office/check-in', [
+                'room_id' => $room->id,
+                'first_name' => 'Amit',
+                'last_name' => 'Sharma',
+                'phone' => '9822334455',
+                'nationality' => 'India',
+                'id_type' => 'AADHAAR',
+                'id_number' => '123456789012',
+                'expected_check_out_at' => Carbon::today()->addDay()->setHour(11)->format('Y-m-d H:i:s'),
+                'advance_deposit_amount' => 0,
+            ]);
+
+        $bookingId = $checkInRes->json('booking.id');
+        $grandTotal = (float) $checkInRes->json('booking.grand_total');
+
+        // Attempt to record payment greater than total balance
+        $overpayRes = $this->actingAs($frontDeskStaff)
+            ->withHeader('X-Hotel-Context', $hotel->id)
+            ->postJson("/api/v1/front-office/bookings/{$bookingId}/payments", [
+                'amount' => $grandTotal + 10000.00,
+                'payment_method' => 'CASH',
+            ]);
+
+        $overpayRes->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+            ]);
+    }
+
     public function test_can_get_1_month_room_occupancy_calendar_and_availability(): void
     {
         $hotel = Hotel::where('hotel_code', 'HTL-1001')->first();

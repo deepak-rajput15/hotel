@@ -2,22 +2,20 @@
 
 namespace App\Http\Controllers\Api\V1\Hotel;
 
+use App\Domain\Access\Contracts\HotelStaffServiceInterface;
 use App\Domain\Access\Models\Role;
-use App\Domain\Subscriptions\Actions\AssignHotelModulesAction;
 use App\Domain\Tenancy\Models\Hotel;
 use App\Domain\Tenancy\Models\UserHotelAccess;
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Http\Requests\Api\V1\Hotel\CreateHotelStaffRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class HotelStaffController extends Controller
 {
     public function __construct(
-        protected AssignHotelModulesAction $assignModulesAction
+        protected HotelStaffServiceInterface $hotelStaffService
     ) {}
 
     /**
@@ -94,7 +92,7 @@ class HotelStaffController extends Controller
     /**
      * Create a staff user and grant them module-specific role access to a hotel.
      */
-    public function store(Request $request, string $hotelId): JsonResponse
+    public function store(CreateHotelStaffRequest $request, string $hotelId): JsonResponse
     {
         $user = $request->user();
 
@@ -123,58 +121,10 @@ class HotelStaffController extends Controller
             ], 403);
         }
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:150',
-            'email' => 'required|email|max:150|unique:users,email',
-            'phone' => 'nullable|string|max:30',
-            'password' => 'required|string|min:6',
-            'role_id' => 'required|uuid|exists:roles,id',
-        ]);
-
-        $role = Role::findOrFail($validated['role_id']);
-
-        // Check required module subscription for the role
-        $roleModuleRequirements = [
-            'front-desk' => ['front_office', 'rooms'],
-            'restaurant-cashier' => ['restaurant'],
-            'head-chef' => ['kitchen'],
-            'storekeeper' => ['store', 'purchase'],
-        ];
-
-        $activeModules = $this->assignModulesAction->getActiveModuleCodes($hotel);
-
-        if (isset($roleModuleRequirements[$role->slug])) {
-            $required = $roleModuleRequirements[$role->slug];
-            $hasAnyRequired = count(array_intersect($required, $activeModules)) > 0;
-
-            if (!$hasAnyRequired) {
-                return response()->json([
-                    'success' => false,
-                    'error_code' => 'MODULE_NOT_SUBSCRIBED',
-                    'message' => "Cannot assign '{$role->name}'. Hotel '{$hotel->name}' is NOT subscribed to required module (" . implode(', ', $required) . "). Please subscribe the hotel first.",
-                ], 422);
-            }
-        }
-
-        // Create the staff user under the organization
-        $staffUser = User::create([
-            'organization_id' => $hotel->organization_id,
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'] ?? null,
-            'password' => Hash::make($validated['password']),
-            'is_platform_admin' => false,
-            'is_org_owner' => false,
-            'status' => 'ACTIVE',
-        ]);
-
-        // Link staff to hotel with role
-        $access = UserHotelAccess::create([
-            'user_id' => $staffUser->id,
-            'hotel_id' => $hotel->id,
-            'role_id' => $role->id,
-            'is_default' => true,
-        ]);
+        $result = $this->hotelStaffService->createStaff($hotel, $request->validated(), $user);
+        $staffUser = $result['staffUser'];
+        $access = $result['access'];
+        $role = $result['role'];
 
         return response()->json([
             'success' => true,

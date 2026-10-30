@@ -61,17 +61,14 @@ class WhatsAppController extends Controller
     /**
      * Resend or manually trigger WhatsApp notification for a booking.
      */
-    public function resend(Request $request): JsonResponse
+    public function resend(\App\Http\Requests\Api\V1\Notifications\ResendWhatsAppNotificationRequest $request): JsonResponse
     {
         $hotel = $this->resolveHotel($request);
         if (!$hotel) {
             return response()->json(['success' => false, 'message' => 'Hotel context required'], 400);
         }
 
-        $validated = $request->validate([
-            'booking_id' => 'required|exists:bookings,id',
-            'type' => 'required|in:BOOKING_CONFIRMATION,PRE_CHECKIN_KYC,CHECKOUT_INVOICE',
-        ]);
+        $validated = $request->validated();
 
         $booking = Booking::withoutGlobalScopes()
             ->where('hotel_id', $hotel->id)

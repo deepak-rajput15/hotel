@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\FrontOffice;
 
-use App\Domain\FrontOffice\Actions\ClaimLostItemAction;
-use App\Domain\FrontOffice\Actions\DisposeLostItemAction;
-use App\Domain\FrontOffice\Actions\LogLostItemAction;
+use App\Domain\FrontOffice\Contracts\LostAndFoundServiceInterface;
 use App\Domain\FrontOffice\Models\LostAndFoundItem;
 use App\Domain\Tenancy\Models\Hotel;
 use App\Http\Controllers\Controller;
@@ -17,6 +15,10 @@ use Illuminate\Http\Request;
 
 class LostAndFoundController extends Controller
 {
+    public function __construct(
+        protected LostAndFoundServiceInterface $lostAndFoundService
+    ) {}
+
     /**
      * Resolve active hotel context from request attributes.
      */
@@ -80,12 +82,12 @@ class LostAndFoundController extends Controller
     }
 
     /**
-     * Log a new lost & found item (Delegates to LogLostItemAction).
+     * Log a new lost & found item (Delegates to LostAndFoundService).
      */
-    public function store(StoreLostItemRequest $request, LogLostItemAction $action): JsonResponse
+    public function store(StoreLostItemRequest $request): JsonResponse
     {
         $hotel = $this->getHotel($request);
-        $item = $action->execute($hotel, $request->validated(), $request->user());
+        $item = $this->lostAndFoundService->logItem($hotel, $request->validated(), $request->user());
 
         return response()->json([
             'success' => true,
@@ -127,12 +129,12 @@ class LostAndFoundController extends Controller
     }
 
     /**
-     * Claim and handover item to guest / representative (Delegates to ClaimLostItemAction).
+     * Claim and handover item to guest / representative (Delegates to LostAndFoundService).
      */
-    public function claim(ClaimLostItemRequest $request, string $id, ClaimLostItemAction $action): JsonResponse
+    public function claim(ClaimLostItemRequest $request, string $id): JsonResponse
     {
         $hotel = $this->getHotel($request);
-        $item = $action->execute($hotel, $id, $request->validated());
+        $item = $this->lostAndFoundService->claimItem($hotel, $id, $request->validated());
 
         return response()->json([
             'success' => true,
@@ -142,12 +144,12 @@ class LostAndFoundController extends Controller
     }
 
     /**
-     * Dispose or donate unclaimed item (Delegates to DisposeLostItemAction).
+     * Dispose or donate unclaimed item (Delegates to LostAndFoundService).
      */
-    public function dispose(DisposeLostItemRequest $request, string $id, DisposeLostItemAction $action): JsonResponse
+    public function dispose(DisposeLostItemRequest $request, string $id): JsonResponse
     {
         $hotel = $this->getHotel($request);
-        $item = $action->execute($hotel, $id, $request->validated(), $request->user());
+        $item = $this->lostAndFoundService->disposeItem($hotel, $id, $request->validated(), $request->user());
 
         return response()->json([
             'success' => true,

@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api\V1\Kitchen;
 
+use App\Domain\Kitchen\Contracts\KitchenKdsServiceInterface;
 use App\Domain\Restaurant\Models\RestaurantOrder;
 use App\Domain\Restaurant\Models\RestaurantOrderItem;
 use App\Domain\Tenancy\Models\Hotel;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Kitchen\UpdateKitchenItemStatusRequest;
+use App\Http\Requests\Api\V1\Kitchen\UpdateKotStatusRequest;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +16,10 @@ use Illuminate\Support\Facades\DB;
 
 class KitchenKdsController extends Controller
 {
+    public function __construct(
+        protected KitchenKdsServiceInterface $kitchenService
+    ) {}
+
     /**
      * Resolve hotel context from request attributes.
      */
@@ -164,7 +171,7 @@ class KitchenKdsController extends Controller
     /**
      * Update individual item status (e.g. PENDING -> PREPARING -> READY -> SERVED).
      */
-    public function updateItemStatus(Request $request, string $itemId): JsonResponse
+    public function updateItemStatus(UpdateKitchenItemStatusRequest $request, string $itemId): JsonResponse
     {
         $hotel = $this->getHotel($request);
 
@@ -172,49 +179,16 @@ class KitchenKdsController extends Controller
             $q->where('hotel_id', $hotel->id);
         })->with(['order.items.menuItem'])->findOrFail($itemId);
 
-        $validated = $request->validate([
-            'status' => 'required|string|in:PENDING,PREPARING,READY,SERVED,CANCELLED',
-        ]);
+        $status = $request->validated('status');
+        $item = $this->kitchenService->updateItemStatus($item, $status);
 
-        if ($validated['status'] === 'CANCELLED') {
-            if ($item->order && $item->order->status === RestaurantOrder::STATUS_SETTLED) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot cancel item on an already settled order.',
-                ], 422);
-            }
-
-            $item->update(['status' => 'CANCELLED']);
-
-            // Recalculate order subtotal and tax on active items
-            if ($item->order) {
-                $activeItems = $item->order->items()->where('status', '!=', 'CANCELLED')->get();
-                $newSubtotal = (float) $activeItems->sum('total_price');
-                $newTax = (float) $activeItems->sum(function ($it) {
-                    $gst = (float) ($it->menuItem?->gst_percentage ?? 5.00);
-                    return round(($it->total_price * $gst) / 100, 2);
-                });
-                $newGrandTotal = max(0, $newSubtotal + $newTax - (float) $item->order->discount_amount);
-
-                $item->order->update([
-                    'subtotal' => $newSubtotal,
-                    'tax_amount' => $newTax,
-                    'grand_total' => $newGrandTotal,
-                ]);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => "Item '{$item->item_name}' marked as CANCELLED.",
-                'item' => $item,
-            ]);
-        }
-
-        $item->update(['status' => $validated['status']]);
+        $msg = $status === 'CANCELLED'
+            ? "Item '{$item->item_name}' marked as CANCELLED."
+            : "Item '{$item->item_name}' marked as {$item->status}.";
 
         return response()->json([
             'success' => true,
-            'message' => "Item '{$item->item_name}' marked as {$item->status}.",
+            'message' => $msg,
             'item' => $item,
         ]);
     }
@@ -222,23 +196,17 @@ class KitchenKdsController extends Controller
     /**
      * Batch update all items of a KOT ticket (e.g. "Start Cooking All" or "All Ready").
      */
-    public function updateKotStatus(Request $request, string $orderId, string $kotNumber): JsonResponse
+    public function updateKotStatus(UpdateKotStatusRequest $request, string $orderId, string $kotNumber): JsonResponse
     {
         $hotel = $this->getHotel($request);
 
         $order = $hotel->restaurantOrders()->findOrFail($orderId);
-
-        $validated = $request->validate([
-            'status' => 'required|string|in:PREPARING,READY,SERVED',
-        ]);
-
-        $affected = RestaurantOrderItem::where('order_id', $order->id)
-            ->where('kot_number', $kotNumber)
-            ->update(['status' => $validated['status']]);
+        $status = $request->validated('status');
+        $affected = $this->kitchenService->updateKotStatus($order, $kotNumber, $status);
 
         return response()->json([
             'success' => true,
-            'message' => "All items in {$kotNumber} marked as {$validated['status']}.",
+            'message' => "All items in {$kotNumber} marked as {$status}.",
             'affected_count' => $affected,
         ]);
     }

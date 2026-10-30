@@ -218,6 +218,49 @@ class LostAndFoundTest extends TestCase
             'id' => $item->id,
             'status' => 'DISPOSED',
         ]);
+
+        // Attempt to claim the now-disposed item -> should be rejected with 422
+        $invalidClaimResponse = $this->actingAs($staff)
+            ->withHeaders(['X-Hotel-ID' => $hotel->id])
+            ->postJson("/api/v1/front-office/lost-and-found/{$item->id}/claim", [
+                'claimed_by_name' => 'Late Visitor',
+                'claimed_by_phone' => '9988776655',
+                'handover_by_staff_name' => 'Priya Sharma',
+            ]);
+
+        $invalidClaimResponse->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_cannot_dispose_already_claimed_item(): void
+    {
+        $hotel = Hotel::where('hotel_code', 'HTL-1001')->first();
+        $staff = User::where('email', 'frontdesk.priya@apexhospitality.com')->first();
+
+        $item = $hotel->lostAndFoundItems()->create([
+            'reference_no' => 'LF-20261030-009',
+            'item_name' => 'Designer Sunglasses',
+            'category' => 'VALUABLES',
+            'found_location_type' => 'LOBBY',
+            'found_at' => Carbon::now()->subDays(1),
+            'found_by_name' => 'Lobby Guard',
+            'storage_location' => 'Front Desk Drawer',
+            'status' => LostAndFoundItem::STATUS_CLAIMED,
+            'claimed_at' => Carbon::now()->subHours(2),
+            'claimed_by_name' => 'Original Owner',
+            'claimed_by_phone' => '9876543210',
+            'handover_by_staff_name' => 'Priya Sharma',
+        ]);
+
+        // Attempt to dispose an already claimed item -> should be rejected with 422
+        $invalidDisposeResponse = $this->actingAs($staff)
+            ->withHeaders(['X-Hotel-ID' => $hotel->id])
+            ->postJson("/api/v1/front-office/lost-and-found/{$item->id}/dispose", [
+                'disposal_reason' => 'Perishable junk',
+            ]);
+
+        $invalidDisposeResponse->assertStatus(422)
+            ->assertJsonPath('success', false);
     }
 
     public function test_multi_tenant_isolation_prevents_cross_hotel_access(): void

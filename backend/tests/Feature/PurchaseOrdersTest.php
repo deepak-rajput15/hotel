@@ -189,7 +189,10 @@ class PurchaseOrdersTest extends TestCase
             ]);
 
         // 3. ASSERT: Store inventory stock automatically increased from 50 to 150!
-        $this->assertEquals($initialStock + 100.00, (float) $this->product->fresh()->current_stock);
+        $refreshedProduct = $this->product->fresh();
+        $this->assertEquals($initialStock + 100.00, (float) $refreshedProduct->current_stock);
+        $this->assertNotEmpty($refreshedProduct->batches);
+        $this->assertEquals(100.00, $refreshedProduct->batches[count($refreshedProduct->batches) - 1]['quantity']);
 
         // 4. ASSERT: GRN record exists in database
         $this->assertDatabaseHas('goods_receipt_notes', [

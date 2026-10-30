@@ -36,3 +36,4 @@ class StoreLostItemRequest extends FormRequest
         ];
     }
 }
+

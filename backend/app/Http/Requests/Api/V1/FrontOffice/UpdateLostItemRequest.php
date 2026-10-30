@@ -28,3 +28,4 @@ class UpdateLostItemRequest extends FormRequest
         ];
     }
 }
+

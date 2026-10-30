@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api\V1\Notifications;
 
+use App\Domain\Notifications\Contracts\NotificationServiceInterface;
 use App\Domain\Notifications\Models\InternalNotification;
 use App\Domain\Notifications\Models\NotificationRead;
 use App\Domain\Tenancy\Models\Hotel;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Notifications\BroadcastNotificationRequest;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +16,9 @@ use Illuminate\Validation\Rule;
 
 class NotificationController extends Controller
 {
+    public function __construct(
+        protected NotificationServiceInterface $notificationService
+    ) {}
     /**
      * List relevant internal notifications for authenticated user.
      */
@@ -152,91 +157,14 @@ class NotificationController extends Controller
      * Platform Admin -> Hotel Owners
      * Hotel Owner -> Subordinates / Staff
      */
-    public function store(Request $request): JsonResponse
+    public function store(BroadcastNotificationRequest $request): JsonResponse
     {
-        $user = $request->user();
-
-        if (!$user->isPlatformAdmin() && !$user->isOrgOwner()) {
-            return response()->json([
-                'success' => false,
-                'error_code' => 'UNAUTHORIZED_NOTIFICATION_BROADCAST',
-                'message' => 'Only Hotel Owners and SaaS Platform Admins are authorized to broadcast notifications.',
-            ], 403);
-        }
-
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'message' => 'required|string',
-            'priority' => 'nullable|string|in:INFO,WARNING,URGENT',
-            'is_banner' => 'nullable|boolean',
-            'target_scope' => [
-                'required',
-                'string',
-                Rule::in(['GLOBAL_OWNERS', 'ORGANIZATION_OWNERS', 'ALL_STAFF', 'SPECIFIC_ROLE', 'SPECIFIC_HOTEL']),
-            ],
-            'target_role' => [
-                'nullable',
-                'string',
-                'required_if:target_scope,SPECIFIC_ROLE',
-                Rule::in(['front-desk', 'restaurant-cashier', 'head-chef', 'storekeeper', 'general-manager']),
-            ],
-            'hotel_id' => 'nullable|uuid|exists:hotels,id',
-            'organization_id' => 'nullable|uuid|exists:organizations,id',
-            'expires_at' => 'nullable|date',
-        ]);
-
-        $senderType = $user->isPlatformAdmin() ? 'PLATFORM_ADMIN' : 'HOTEL_OWNER';
-        $organizationId = $user->organization_id;
-        $hotelId = $validated['hotel_id'] ?? null;
-
-        if ($user->isPlatformAdmin()) {
-            $organizationId = $validated['organization_id'] ?? null;
-        } else {
-            // Hotel Owner validation: Ensure hotel_id belongs to owner's organization
-            if ($hotelId) {
-                $hotel = Hotel::where('id', $hotelId)
-                    ->where('organization_id', $organizationId)
-                    ->first();
-
-                if (!$hotel) {
-                    return response()->json([
-                        'success' => false,
-                        'error_code' => 'INVALID_HOTEL_SELECTION',
-                        'message' => 'Selected hotel does not belong to your organization.',
-                    ], 422);
-                }
-            }
-
-            // Prevent Hotel Owner from broadcasting GLOBAL_OWNERS (only Platform Admin can)
-            if ($validated['target_scope'] === 'GLOBAL_OWNERS') {
-                return response()->json([
-                    'success' => false,
-                    'error_code' => 'FORBIDDEN_GLOBAL_BROADCAST',
-                    'message' => 'Hotel owners cannot broadcast global announcements across all organizations.',
-                ], 403);
-            }
-        }
-
-        $notification = InternalNotification::create([
-            'sender_id' => $user->id,
-            'sender_type' => $senderType,
-            'organization_id' => $organizationId,
-            'hotel_id' => $hotelId,
-            'target_scope' => $validated['target_scope'],
-            'target_role' => $validated['target_scope'] === 'SPECIFIC_ROLE' ? $validated['target_role'] : null,
-            'title' => $validated['title'],
-            'message' => $validated['message'],
-            'priority' => $validated['priority'] ?? 'INFO',
-            'is_banner' => $request->boolean('is_banner', false),
-            'starts_at' => now(),
-            'expires_at' => !empty($validated['expires_at']) ? Carbon::parse($validated['expires_at']) : null,
-            'is_active' => true,
-        ]);
+        $notification = $this->notificationService->broadcast($request->user(), $request->validated());
 
         return response()->json([
             'success' => true,
             'message' => 'Internal notification broadcasted successfully.',
-            'data' => $notification->load(['sender:id,name,email', 'hotel:id,name,hotel_code']),
+            'data' => $notification,
         ], 201);
     }
 

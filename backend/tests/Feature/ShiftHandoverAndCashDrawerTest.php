@@ -127,6 +127,20 @@ class ShiftHandoverAndCashDrawerTest extends TestCase
             'transaction_type' => 'PAYOUT',
             'amount' => 450,
         ]);
+
+        // Attempt to payout more than remaining available cash (₹4550) -> e.g. ₹10,000
+        $excessPayout = $this->actingAs($this->cashier)
+            ->withHeader('X-Hotel-Context', $this->hotel->id)
+            ->postJson("/api/v1/shifts/{$shiftId}/cash-transaction", [
+                'transaction_type' => 'PAYOUT',
+                'amount' => 10000,
+                'reason' => 'Excess unauthorized payout',
+            ]);
+
+        $excessPayout->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+            ]);
     }
 
     public function test_can_close_shift_and_verify_computed_collections_and_variance(): void
