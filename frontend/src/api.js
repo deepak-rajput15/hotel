@@ -58,6 +58,43 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify({ modules }),
     }),
+
+  // SaaS Subscription Packages & Pricing (Company Owner & Sales Team)
+  getPackages: (params = '') => apiRequest(`/admin/packages${params ? '?' + new URLSearchParams(params).toString() : ''}`),
+  createPackage: (data) =>
+    apiRequest('/admin/packages', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updatePackage: (id, data) =>
+    apiRequest(`/admin/packages/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deletePackage: (id) =>
+    apiRequest(`/admin/packages/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Hotel Subscriptions & Sales Deals
+  getHotelSubscriptions: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/hotel-subscriptions${query ? '?' + query : ''}`);
+  },
+  assignHotelPackage: (hotelId, data) =>
+    apiRequest(`/admin/hotels/${hotelId}/assign-package`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  extendSubscription: (subscriptionId, data) =>
+    apiRequest(`/admin/hotel-subscriptions/${subscriptionId}/extend`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  cancelSubscription: (subscriptionId) =>
+    apiRequest(`/admin/hotel-subscriptions/${subscriptionId}/cancel`, {
+      method: 'PUT',
+    }),
 };
 
 export const hotelApi = {

@@ -4,6 +4,8 @@ import OverviewTab from './OverviewTab';
 import OrganizationsTab from './OrganizationsTab';
 import HotelsTab from './HotelsTab';
 import SubscriptionsTab from './SubscriptionsTab';
+import PackagesTab from './PackagesTab';
+import HotelSubscriptionsTab from './HotelSubscriptionsTab';
 import {
   CheckCircle2,
   AlertCircle,
@@ -17,6 +19,9 @@ export default function SuperAdminDashboard({ activeTab = 'overview', onNavigate
   const [organizations, setOrganizations] = useState([]);
   const [hotels, setHotels] = useState([]);
   const [modules, setModules] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [targetHotelForAssign, setTargetHotelForAssign] = useState(null);
+  const [targetPackageForAssign, setTargetPackageForAssign] = useState(null);
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [moduleToggles, setModuleToggles] = useState({});
   const [loading, setLoading] = useState(true);
@@ -76,14 +81,19 @@ export default function SuperAdminDashboard({ activeTab = 'overview', onNavigate
   const loadData = async () => {
     try {
       setLoading(true);
-      const [orgsRes, hotelsRes, modsRes] = await Promise.all([
+      const [orgsRes, hotelsRes, modsRes, pkgsRes] = await Promise.all([
         adminApi.getOrganizations(),
         adminApi.getHotels(),
         adminApi.getModules(),
+        adminApi.getPackages(),
       ]);
 
       const availableModules = modsRes.success ? (modsRes.data || []) : [];
       setModules(availableModules);
+
+      if (pkgsRes.success) {
+        setPackages(pkgsRes.data || []);
+      }
 
       if (orgsRes.success) setOrganizations(orgsRes.data.data || orgsRes.data || []);
       if (hotelsRes.success) {
@@ -302,6 +312,29 @@ export default function SuperAdminDashboard({ activeTab = 'overview', onNavigate
           onManageModules={handleManageModulesForHotel}
           filterOrgId={filterOrgId}
           onClearOrgFilter={() => setFilterOrgId(null)}
+        />
+      )}
+
+      {activeTab === 'packages' && (
+        <PackagesTab
+          packages={packages}
+          modules={modules}
+          onReload={loadData}
+          onOpenAssignModal={(pkg) => {
+            setTargetPackageForAssign(pkg);
+            setTargetHotelForAssign(selectedHotel || null);
+            if (onNavigateTab) onNavigateTab('hotel_subscriptions');
+          }}
+        />
+      )}
+
+      {activeTab === 'hotel_subscriptions' && (
+        <HotelSubscriptionsTab
+          hotels={hotels}
+          packages={packages}
+          initialTargetHotel={targetHotelForAssign}
+          initialTargetPackage={targetPackageForAssign}
+          onReloadAll={loadData}
         />
       )}
 

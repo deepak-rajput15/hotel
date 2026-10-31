@@ -93,6 +93,22 @@ class Hotel extends Model
             });
     }
 
+    public function packageSubscriptions(): HasMany
+    {
+        return $this->hasMany(\App\Domain\Subscriptions\Models\HotelSubscription::class, 'hotel_id');
+    }
+
+    public function activePackageSubscription(): ?\App\Domain\Subscriptions\Models\HotelSubscription
+    {
+        return $this->packageSubscriptions()
+            ->whereIn('status', ['ACTIVE', 'TRIAL'])
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->latest('starts_at')
+            ->first();
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'user_hotel_access')

@@ -16,6 +16,8 @@ import {
   ChevronDown,
   BarChart3,
   Globe,
+  Package,
+  Receipt,
 } from 'lucide-react';
 
 export default function Sidebar({ currentTab, setCurrentTab }) {
@@ -192,11 +194,24 @@ export default function Sidebar({ currentTab, setCurrentTab }) {
               label="Hotels Directory"
             />
             <NavItem
+              active={currentTab === 'packages'}
+              onClick={() => setCurrentTab('packages')}
+              icon={Package}
+              label="SaaS Pricing & Packages"
+              highlight
+            />
+            <NavItem
+              active={currentTab === 'hotel_subscriptions'}
+              onClick={() => setCurrentTab('hotel_subscriptions')}
+              icon={Receipt}
+              label="Hotel Sales & Contracts"
+              highlight
+            />
+            <NavItem
               active={currentTab === 'subscriptions'}
               onClick={() => setCurrentTab('subscriptions')}
               icon={ShieldCheck}
-              label="Module Subscriptions Matrix"
-              highlight
+              label="Direct Module Matrix"
             />
           </div>
         ) : currentHotel?.id === 'ALL' ? (

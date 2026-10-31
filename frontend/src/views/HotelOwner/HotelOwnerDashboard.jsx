@@ -30,7 +30,7 @@ import {
 import UpiSettingsModal from '../../components/Payments/UpiSettingsModal';
 
 export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
-  const { user, currentHotel, activeModules, selectHotel } = useAuth();
+  const { user, currentHotel, activeModules, packageSubscription, selectHotel } = useAuth();
   const { setIsBroadcastOpen } = useNotifications();
   const [moduleApiStatus, setModuleApiStatus] = useState(null);
   const [testingApi, setTestingApi] = useState(false);
@@ -377,6 +377,107 @@ export default function HotelOwnerDashboard({ activeTab = 'dashboard' }) {
       {/* View: Property Overview */}
       {activeTab === 'dashboard' && (
         <div>
+          {/* Active Subscription Contract Card */}
+          {packageSubscription && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)',
+                color: '#ffffff',
+                borderRadius: '16px',
+                padding: '20px 24px',
+                marginBottom: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '16px',
+                boxShadow: '0 10px 25px -5px rgba(30, 27, 75, 0.4)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    background: 'rgba(99, 102, 241, 0.25)',
+                    border: '1px solid rgba(99, 102, 241, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#a5b4fc',
+                  }}
+                >
+                  <Sparkles size={22} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#a5b4fc', letterSpacing: '0.04em' }}>
+                    Active Property Subscription Plan
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{packageSubscription.plan_name}</span>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        background:
+                          packageSubscription.billing_cycle === 'YEARLY'
+                            ? '#7c3aed'
+                            : packageSubscription.billing_cycle === 'ONETIME'
+                            ? '#059669'
+                            : '#2563eb',
+                        color: '#ffffff',
+                      }}
+                    >
+                      {packageSubscription.billing_cycle}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>Validity & Renewal</div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', marginTop: '2px' }}>
+                    {packageSubscription.is_lifetime
+                      ? '♾️ Lifetime Access'
+                      : packageSubscription.expires_at
+                      ? `Valid until ${new Date(packageSubscription.expires_at).toLocaleDateString('en-IN')} (${packageSubscription.days_remaining}d left)`
+                      : 'Active'}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>Capacity Limits</div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc', marginTop: '2px' }}>
+                    🛏️ {packageSubscription.max_rooms ? `${packageSubscription.max_rooms} Rooms` : 'Unlimited'} • 👥 {packageSubscription.max_staff_accounts ? `${packageSubscription.max_staff_accounts} Staff` : 'Unlimited'}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.2)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    color: '#34d399',
+                    fontSize: '11.5px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <CheckCircle2 size={13} />
+                  <span>Verified & Active</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Operational Metrics */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '28px' }}>
             {!isStaff && (

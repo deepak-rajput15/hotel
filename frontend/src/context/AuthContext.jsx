@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [currentHotel, setCurrentHotel] = useState(null);
   const [activeModules, setActiveModules] = useState([]);
+  const [packageSubscription, setPackageSubscription] = useState(null);
 
   useEffect(() => {
     if (token) {
@@ -72,6 +73,7 @@ export function AuthProvider({ children }) {
       const res = await hotelApi.getActiveModules(hotel.id);
       if (res.success) {
         setActiveModules(res.active_modules || []);
+        setPackageSubscription(res.package_subscription || null);
       }
     } catch (err) {
       console.warn('Could not fetch active modules for hotel:', err);
@@ -114,6 +116,7 @@ export function AuthProvider({ children }) {
         loading,
         currentHotel,
         activeModules,
+        packageSubscription,
         login,
         logout,
         selectHotel,

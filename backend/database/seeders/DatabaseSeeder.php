@@ -243,11 +243,12 @@ class DatabaseSeeder extends Seeder
             ['role_id' => $storeRole->id, 'is_default' => true]
         );
 
-        // 6. Seed Operational Front Office and Master Data (from Book1.xlsx specs)
+        // 6. Seed Operational Front Office, Master Data, and SaaS Subscription Packages
         $this->call([
             FrontOfficeSeeder::class,
             MasterDataSeeder::class,
             NotificationSeeder::class,
+            SubscriptionPackageSeeder::class,
         ]);
     }
 }

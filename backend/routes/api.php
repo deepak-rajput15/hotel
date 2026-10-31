@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Admin\SuperAdminHotelController;
+use App\Http\Controllers\Api\V1\Admin\SuperAdminHotelSubscriptionController;
 use App\Http\Controllers\Api\V1\Admin\SuperAdminModuleController;
 use App\Http\Controllers\Api\V1\Admin\SuperAdminOrganizationController;
+use App\Http\Controllers\Api\V1\Admin\SuperAdminPackageController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\ChannelManager\OtaChannelController;
 use App\Http\Controllers\Api\V1\Finance\ShiftHandoverController;
@@ -195,6 +197,19 @@ Route::prefix('v1')->group(function () {
             // Dynamic Module & Subscription Management (No code changes needed)
             Route::get('/modules', [SuperAdminModuleController::class, 'index']);
             Route::put('/hotels/{hotelId}/modules', [SuperAdminModuleController::class, 'updateHotelModules']);
+
+            // SaaS Subscription Packages & Pricing Management (Company Owner & Sales Team)
+            Route::get('/packages', [SuperAdminPackageController::class, 'index']);
+            Route::post('/packages', [SuperAdminPackageController::class, 'store']);
+            Route::get('/packages/{id}', [SuperAdminPackageController::class, 'show']);
+            Route::put('/packages/{id}', [SuperAdminPackageController::class, 'update']);
+            Route::delete('/packages/{id}', [SuperAdminPackageController::class, 'destroy']);
+
+            // Hotel Subscription Contracts & Sales Deals
+            Route::get('/hotel-subscriptions', [SuperAdminHotelSubscriptionController::class, 'index']);
+            Route::post('/hotels/{hotelId}/assign-package', [SuperAdminHotelSubscriptionController::class, 'assignPackage']);
+            Route::put('/hotel-subscriptions/{subscriptionId}/extend', [SuperAdminHotelSubscriptionController::class, 'extendValidity']);
+            Route::put('/hotel-subscriptions/{subscriptionId}/cancel', [SuperAdminHotelSubscriptionController::class, 'cancel']);
         });
     });
 });

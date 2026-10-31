@@ -47,6 +47,7 @@ class HotelModuleController extends Controller
         $activeCodes = $this->assignModulesAction->getActiveModuleCodes($hotel);
 
         $activeSubscriptions = $hotel->activeSubscriptions()->with('module')->get();
+        $activePackage = $hotel->activePackageSubscription()?->load('package');
 
         return response()->json([
             'success' => true,
@@ -56,6 +57,21 @@ class HotelModuleController extends Controller
                 'name' => $hotel->name,
             ],
             'active_modules' => $activeCodes,
+            'package_subscription' => $activePackage ? [
+                'id' => $activePackage->id,
+                'plan_name' => $activePackage->plan_name,
+                'billing_cycle' => $activePackage->billing_cycle,
+                'agreed_price' => (float) $activePackage->agreed_price,
+                'currency' => $activePackage->currency,
+                'status' => $activePackage->status,
+                'starts_at' => $activePackage->starts_at?->toIso8601String(),
+                'expires_at' => $activePackage->expires_at?->toIso8601String(),
+                'payment_status' => $activePackage->payment_status,
+                'days_remaining' => $activePackage->daysRemaining(),
+                'is_lifetime' => $activePackage->expires_at === null,
+                'max_rooms' => $activePackage->package?->max_rooms,
+                'max_staff_accounts' => $activePackage->package?->max_staff_accounts,
+            ] : null,
             'modules_detail' => $activeSubscriptions->map(function ($sub) {
                 return [
                     'code' => $sub->module->code,

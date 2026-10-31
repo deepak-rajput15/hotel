@@ -103,6 +103,8 @@ function AppContent() {
         case 'overview': return 'Platform Command Center';
         case 'organizations': return 'Hotel Owners & Organizations';
         case 'hotels': return 'Hotel Properties Directory';
+        case 'packages': return 'Subscription Packages & Pricing Management';
+        case 'hotel_subscriptions': return 'Hotel Sales, Subscriptions & Contracts';
         case 'subscriptions': return 'Module Subscriptions & Entitlement Control';
         default: return 'Platform Administration';
       }
